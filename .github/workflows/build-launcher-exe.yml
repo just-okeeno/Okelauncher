@@ -23,8 +23,8 @@ jobs:
 
       - name: Build Okelauncher.exe (GUI) and Okelauncher-cli.exe (terminal)
         run: |
-          pyinstaller --onefile --windowed --name Okelauncher launcher-python/launch.py
-          pyinstaller --onefile --console --name Okelauncher-cli launcher-python/launch.py
+          pyinstaller --onefile --windowed --name Okelauncher --add-data "launcher-python/dashboard.html;." launcher-python/launch.py
+          pyinstaller --onefile --console --name Okelauncher-cli --add-data "launcher-python/dashboard.html;." launcher-python/launch.py
 
       - name: Smoke test (console EXE)
         run: ./dist/Okelauncher-cli.exe --list
@@ -33,12 +33,17 @@ jobs:
         run: ./dist/Okelauncher.exe --list
         shell: pwsh
 
-      - name: Smoke test (GUI opens and stays alive)
+      - name: Smoke test (dashboard opens and stays alive)
         shell: pwsh
         run: |
           $p = Start-Process -FilePath "./dist/Okelauncher-cli.exe" -ArgumentList "--gui" -WindowStyle Hidden -PassThru
           Start-Sleep -Seconds 6
-          if ($p.HasExited) { Write-Error "GUI crashed on launch (console EXE --gui exited with code $($p.ExitCode))" } else { Stop-Process -Id $p.Id }
+          $alive = -not $p.HasExited
+          if ($alive) {
+            $out = & "./dist/Okelauncher-cli.exe" --list
+            if (-not ($out -join "`n").Match("Doctor")) { Write-Error "--list output missing entries" }
+          }
+          if ($p.HasExited) { Write-Error "dashboard crashed on launch (console EXE --gui exited with code $($p.ExitCode))" } else { Stop-Process -Id $p.Id }
 
       - uses: actions/upload-artifact@v4
         with:

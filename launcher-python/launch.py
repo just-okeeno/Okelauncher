@@ -38,11 +38,8 @@ except ImportError:
 
 RESET, DIM, BOLD, CYAN = "\033[0m", "\033[2m", "\033[1m", "\033[36m"
 
-THEMES = {
-    "midnight": {"bg": "#0f1115", "nav": "#12141a", "surface": "#1b1e26", "surface_hi": "#262b36", "fg": "#e8eaed", "dim": "#9aa0a6", "muted": "#5f6368", "accent": "#89b4fa"},
-    "oled": {"bg": "#000000", "nav": "#080808", "surface": "#141414", "surface_hi": "#232323", "fg": "#f5f5f5", "dim": "#8c8c8c", "muted": "#4d4d4d", "accent": "#ff5370"},
-    "sapphire": {"bg": "#0a0f1e", "nav": "#0d1426", "surface": "#1e293b", "surface_hi": "#334155", "fg": "#e2e8f0", "dim": "#94a3b8", "muted": "#475569", "accent": "#38bdf8"},
-}
+VALID_THEMES = frozenset({"obsidian", "aurora", "arctic", "sunset"})
+THEME_ALIASES = {"midnight": "obsidian", "oled": "obsidian", "sapphire": "aurora"}
 
 CATEGORIES = [
     {"title": "My Computer", "glyph": "🖥", "tags": ["system"], "desc": "Access and manage your PC.", "special": "system"},
@@ -72,6 +69,13 @@ def script_base() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parent
+
+
+def dashboard_path() -> Path:
+    if getattr(sys, "frozen", False):
+        base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent))
+        return base / "dashboard.html"
+    return script_base() / "dashboard.html"
 
 
 def default_config_path() -> Path:
@@ -269,18 +273,20 @@ def category_entries(entries: list[dict], category: dict) -> list[dict]:
     return [entry for entry in entries if wanted.intersection(entry["tags"])]
 
 
+WEATHER_CODES = {
+    0: ("Clear", "\u2600"), 1: ("Mostly clear", "\U0001f324"), 2: ("Partly cloudy", "\u26c5"), 3: ("Overcast", "\u2601"),
+    45: ("Fog", "\U0001f32b"), 48: ("Fog", "\U0001f32b"),
+    51: ("Light drizzle", "\U0001f326"), 53: ("Drizzle", "\U0001f326"), 55: ("Heavy drizzle", "\U0001f327"),
+    61: ("Light rain", "\U0001f326"), 63: ("Rain", "\U0001f327"), 65: ("Heavy rain", "\U0001f327"),
+    71: ("Light snow", "\U0001f328"), 73: ("Snow", "\U0001f327"), 75: ("Heavy snow", "\u2744"), 85: ("Snow showers", "\U0001f328"), 86: ("Snow showers", "\u2744"),
+    80: ("Light showers", "\U0001f326"), 81: ("Showers", "\U0001f327"), 82: ("Heavy showers", "\U0001f327"),
+    95: ("Thunderstorm", "\u26c8"), 96: ("Thunderstorm", "\u26c8"), 99: ("Hail storm", "\u26c8"),
+}
+
+
 def weather_summary(temp: float, code: int, unit: str = "fahrenheit") -> str:
-    descriptions = {
-        0: ("Clear", "☀"), 1: ("Mostly clear", "🌤"), 2: ("Partly cloudy", "⛅"), 3: ("Overcast", "☁"),
-        45: ("Fog", "🌫"), 48: ("Fog", "🌫"),
-        51: ("Light drizzle", "🌦"), 53: ("Drizzle", "🌦"), 55: ("Heavy drizzle", "🌧"),
-        61: ("Light rain", "🌦"), 63: ("Rain", "🌧"), 65: ("Heavy rain", "🌧"),
-        71: ("Light snow", "🌨"), 73: ("Snow", "🌨"), 75: ("Heavy snow", "❄"), 85: ("Snow showers", "🌨"), 86: ("Snow showers", "❄"),
-        80: ("Light showers", "🌦"), 81: ("Showers", "🌧"), 82: ("Heavy showers", "🌧"),
-        95: ("Thunderstorm", "⛈"), 96: ("Thunderstorm", "⛈"), 99: ("Hail storm", "⛈"),
-    }
-    description, glyph = descriptions.get(int(code), ("Weather", "🌡"))
-    value = f"{round(temp)}°F" if unit.lower().startswith("f") else f"{round(temp)}°C"
+    description, glyph = WEATHER_CODES.get(int(code), ("Weather", "\U0001f321"))
+    value = f"{round(temp)}\u00b0F" if unit.lower().startswith("f") else f"{round(temp)}\u00b0C"
     return f"{value} {glyph} {description}"
 
 
@@ -296,52 +302,96 @@ def geolocate_by_ip() -> dict:
             if lat is None or lon is None:
                 continue
             unit = "fahrenheit" if data.get("country_code") == "US" else "celsius"
-            return {"lat": float(lat), "lon": float(lon), "unit": unit}
+            location = {"lat": float(lat), "lon": float(lon), "unit": unit}
+            if data.get("city"):
+                location["city"] = str(data["city"])
+            if data.get("country_code"):
+                location["country_code"] = str(data["country_code"])
+            return location
         except Exception:
             continue
     return {}
 
 
-def fetch_weather_async(root, label, config: dict) -> None:
+def fetch_weather(config: dict) -> dict:
     import urllib.request
 
-    def work():
-        try:
-            location = dict(config)
-            if "lat" not in location or "lon" not in location:
-                detected = geolocate_by_ip()
-                if not detected:
-                    return
-                for key, value in detected.items():
-                    location.setdefault(key, value)
-            unit = str(location.get("unit", "fahrenheit"))
-            params = f"latitude={location['lat']}&longitude={location['lon']}&current=temperature_2m,weather_code"
-            params += f"&temperature_unit={'fahrenheit' if unit.lower().startswith('f') else 'celsius'}"
-            url = f"https://api.open-meteo.com/v1/forecast?{params}"
-            with urllib.request.urlopen(url, timeout=6) as resp:
-                data = json.load(resp)
-            current = data.get("current", {})
-            text = weather_summary(current["temperature_2m"], current.get("weather_code", 0), unit)
-            root.after(0, lambda: label.config(text=text))
-        except Exception:
-            return
+    try:
+        location = dict(config)
+        if "lat" not in location or "lon" not in location:
+            detected = geolocate_by_ip()
+            if not detected:
+                return {"ok": False, "text": "\u2014", "cond": "", "location": "location unknown", "glyph": "\u25cc"}
+            for key, value in detected.items():
+                location.setdefault(key, value)
+        unit = str(location.get("unit", "fahrenheit"))
+        params = f"latitude={location['lat']}&longitude={location['lon']}&current=temperature_2m,weather_code"
+        params += f"&temperature_unit={'fahrenheit' if unit.lower().startswith('f') else 'celsius'}"
+        url = f"https://api.open-meteo.com/v1/forecast?{params}"
+        with urllib.request.urlopen(url, timeout=8) as resp:
+            data = json.load(resp)
+        current = data.get("current", {})
+        code = int(current.get("weather_code", 0))
+        temp = round(float(current["temperature_2m"]))
+        description, glyph = WEATHER_CODES.get(code, ("Weather", "\U0001f321"))
+        city = str(location.get("city") or "")
+        if city and location.get("country_code"):
+            city = f"{city}, {location['country_code']}"
+        elif not city:
+            city = "your location"
+        unit_sym = "\u00b0F" if unit.lower().startswith("f") else "\u00b0C"
+        return {"ok": True, "text": f"{temp}{unit_sym}", "cond": description, "location": city, "glyph": glyph}
+    except Exception:
+        return {"ok": False, "text": "\u2014", "cond": "", "location": "weather unavailable", "glyph": "\u25cc"}
 
-    threading.Thread(target=work, daemon=True).start()
+
+def _cpu_load() -> int | None:
+    if os.name == "nt":
+        class FILETIME(ctypes.Structure):
+            _fields_ = [("dwLowDateTime", ctypes.c_ulong), ("dwHighDateTime", ctypes.c_ulong)]
+
+        def sample():
+            idle, kernel, user = FILETIME(), FILETIME(), FILETIME()
+
+            ctypes.windll.kernel32.GetSystemTimes(ctypes.byref(idle), ctypes.byref(kernel), ctypes.byref(user))
+            return (idle, kernel, user)
+
+        def as_int(value: FILETIME) -> int:
+            return (value.dwHighDateTime << 32) | value.dwLowDateTime
+
+        idle1, kernel1, user1 = sample()
+        time.sleep(0.25)
+
+        idle2, kernel2, user2 = sample()
+        idle_delta = as_int(idle2) - as_int(idle1)
+        total = (as_int(kernel2) + as_int(user2)) - (as_int(kernel1) + as_int(user1))
+        if total <= 0:
+            return None
+        return max(0, min(100, round(100 * (1 - idle_delta / total))))
+    try:
+        loads = os.getloadavg()
+        return max(0, min(100, round(100 * loads[0] / max(os.cpu_count() or 1, 1))))
+    except (OSError, ValueError):
+        return None
 
 
-def system_stats() -> list[tuple[str, str]]:
+def system_stats() -> list[tuple]:
     import platform
+    import time
 
-    stats: list[tuple[str, str]] = [
-        ("OS", f"{platform.system()} {platform.release()} ({platform.machine()})"),
-        ("CPU cores", str(os.cpu_count() or "unknown")),
+    stats: list[tuple] = [
+        ("OS", f"{platform.system()} {platform.release()} ({platform.machine()})", None),
+        ("CPU cores", str(os.cpu_count() or "unknown"), None),
     ]
-    if hasattr(os, "getloadavg") and os.name != "nt":
-        try:
-            loads = os.getloadavg()
-            stats.append(("Load average", f"{loads[0]:.2f} / {loads[1]:.2f} / {loads[2]:.2f}"))
-        except OSError:
-            pass
+    load_pct = _cpu_load()
+    if load_pct is not None:
+        label = f"{load_pct}% in use"
+        if os.name != "nt" and hasattr(os, "getloadavg"):
+            try:
+                label += f" (load {os.getloadavg()[0]:.2f})"
+            except OSError:
+                pass
+        stats.append(("CPU load", label, load_pct))
     if os.name == "nt":
         try:
             class MEMORYSTATUSEX(ctypes.Structure):
@@ -362,7 +412,7 @@ def system_stats() -> list[tuple[str, str]]:
             if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
                 total = status.ullTotalPhys / (1024 ** 3)
                 free = status.ullAvailPhys / (1024 ** 3)
-                stats.append(("RAM", f"{free:.1f} GB free of {total:.1f} GB ({status.dwMemoryLoad}% in use)"))
+                stats.append(("RAM", f"{free:.1f} GB free of {total:.1f} GB ({status.dwMemoryLoad}% in use)", int(status.dwMemoryLoad)))
         except (OSError, AttributeError):
             pass
     else:
@@ -374,7 +424,8 @@ def system_stats() -> list[tuple[str, str]]:
             if "MemTotal" in info and "MemAvailable" in info:
                 total = float(info["MemTotal"]) / (1024 ** 2)
                 free = float(info["MemAvailable"]) / (1024 ** 2)
-                stats.append(("RAM", f"{free:.1f} GB free of {total:.1f} GB"))
+                used_pct = max(0, min(100, round(100 * (total - free) / max(total, 0.01))))
+                stats.append(("RAM", f"{free:.1f} GB free of {total:.1f} GB ({used_pct}% in use)", used_pct))
         except (OSError, IndexError, ValueError):
             pass
     roots: list[str] = []
@@ -397,7 +448,8 @@ def system_stats() -> list[tuple[str, str]]:
     for disk_root in list(dict.fromkeys(roots))[:8]:
         try:
             usage = shutil.disk_usage(disk_root)
-            stats.append((f"Disk {disk_root}", f"{usage.free / (1024 ** 3):.0f} GB free of {usage.total / (1024 ** 3):.0f} GB"))
+            used_pct = max(0, min(100, round(100 * (1 - usage.free / max(usage.total, 1)))))
+            stats.append((f"Disk {disk_root}", f"{usage.free / (1024 ** 3):.0f} GB free of {usage.total / (1024 ** 3):.0f} GB", used_pct))
         except (OSError, PermissionError):
             continue
     return stats
@@ -517,502 +569,196 @@ def render(matches: list[dict], query: str, selected: int) -> None:
     sys.stdout.flush()
 
 
-def launch_gui(entries: list[dict], path: Path, weather_config: dict | None = None, theme_name: str = "midnight") -> int:
-    try:
-        import tkinter as tk
-        from tkinter import font as tkfont
-        from tkinter import messagebox, simpledialog
-    except ImportError:
-        print("tkinter is not available in this Python build; using the text menu instead")
-        return interactive(entries, path)
+def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | None = None, theme_name: str = "midnight") -> int:
+    import http.server
+    import urllib.parse
 
-    T = THEMES.get(theme_name, THEMES["midnight"])
-    BG, NAV_BG = T["bg"], T["nav"]
-    SURFACE, SURFACE_HI, ACCENT = T["surface"], T["surface_hi"], T["accent"]
-    FG, DIM, MUTED = T["fg"], T["dim"], T["muted"]
-    ON_COLOR = "#ffffff"
-
-    root = tk.Tk()
-    root.title("Oke Launcher")
-    root.configure(bg=BG)
-    root.geometry("1280x760")
-    root.minsize(1020, 620)
-
-    family = tkfont.nametofont("TkDefaultFont").actual("family")
-    COLS, TILE_W, TILE_H = 6, 152, 122
-    RECENT_COLS, RECENT_W, RECENT_H = 7, 120, 92
-
-    state = {
-        "page": "home",
-        "tiles": [],
-        "index": 0,
-        "actions": [],
-        "matches": list(entries),
-        "canvas": None,
-        "fullscreen": False,
+    ui_state = {
+        "entries": entries,
+        "theme": THEME_ALIASES.get(theme_name, theme_name),
+        "stop": threading.Event(),
+        "weather": None,
     }
+    if ui_state["theme"] not in VALID_THEMES:
+        ui_state["theme"] = "obsidian"
+    lock = threading.Lock()
 
-    root.rowconfigure(1, weight=1)
-    root.columnconfigure(1, weight=1)
+    def persist() -> None:
+        save_config(path, ui_state["entries"])
 
-    def tick():
-        now = datetime.datetime.now()
-        clock_label.config(text=now.strftime("%H:%M"))
-        date_label.config(text=now.strftime("%A, %B ") + str(now.day))
-        root.after(20000, tick)
-
-    top = tk.Frame(root, bg=BG)
-    top.grid(row=0, column=0, columnspan=2, sticky="ew", padx=22, pady=(14, 4))
-    brand = tk.Label(top, text="OKE LAUNCHER", bg=BG, fg=ACCENT, font=(family, 13, "bold"))
-    brand.pack(side="left")
-
-    right_stack = tk.Frame(top, bg=BG)
-    weather_label = tk.Label(right_stack, text="", bg=BG, fg=DIM, font=(family, 11))
-    clock_label = tk.Label(right_stack, text="", bg=BG, fg=FG, font=(family, 26, "bold"))
-    date_label = tk.Label(right_stack, text="", bg=BG, fg=DIM, font=(family, 11))
-    weather_label.pack(side="right", anchor="e", padx=(0, 16))
-    clock_label.pack(side="right", anchor="n")
-    date_label.pack(side="right", anchor="s")
-
-    search_container = tk.Frame(top, bg=BG)
-    search_container.place(relx=0.42, rely=0.5, anchor="center")
-    search_var = tk.StringVar()
-    search = tk.Entry(
-        search_container,
-        textvariable=search_var,
-        bg=SURFACE,
-        fg=FG,
-        insertbackground=FG,
-        relief="flat",
-        font=(family, 11),
-        width=36,
-    )
-    search.pack(ipady=6)
-
-    nav_list = ["home", "apps", "favorites", "stats"] + [f"cat:{i}" for i in range(len(CATEGORIES))]
-    nav_labels = ["🏠  Home", "🪟  All apps", "★  Favourites", "📊  System monitor"] + [f"{cat['glyph']}  {cat['title']}" for cat in CATEGORIES]
-
-    nav_frame = tk.Frame(root, bg=NAV_BG)
-    nav_frame.grid(row=1, column=0, sticky="nsw", padx=(12, 4), pady=(6, 0))
-    nav = tk.Listbox(
-        nav_frame,
-        bg=NAV_BG,
-        fg=DIM,
-        selectbackground=SURFACE_HI,
-        selectforeground=FG,
-        activestyle="none",
-        relief="flat",
-        highlightthickness=0,
-        font=(family, 11),
-        width=21,
-        exportselection=False,
-    )
-    nav_scroll = tk.Scrollbar(nav_frame, command=nav.yview, width=9, troughcolor=NAV_BG, bg=NAV_BG, bd=0)
-    nav.configure(yscrollcommand=nav_scroll.set)
-    for label in nav_labels:
-        nav.insert("end", label)
-    nav.pack(side="left", fill="y", pady=6)
-    nav_scroll.pack(side="right", fill="y")
-
-    content = tk.Frame(root, bg=BG)
-    content.grid(row=1, column=1, sticky="nsew", padx=(6, 14), pady=(6, 0))
-
-    status_row = tk.Frame(root, bg=BG)
-    status_row.grid(row=2, column=0, columnspan=2, sticky="ew", padx=22, pady=(8, 12))
-    status = tk.Label(status_row, text="", bg=BG, fg=DIM, anchor="w", font=(family, 10))
-    status.pack(side="left", fill="x", expand=True)
-    action_bar = tk.Frame(status_row, bg=BG)
-    action_bar.pack(side="right")
-
-    def small_button(text, command):
-        return tk.Button(
-            action_bar,
-            text=text,
-            command=command,
-            bg=SURFACE,
-            fg=FG,
-            activebackground=ACCENT,
-            activeforeground=BG,
-            relief="flat",
-            padx=12,
-            pady=3,
-            cursor="hand2",
-            font=(family, 10),
-        )
-
-    def add_app_dialog():
-        name = simpledialog.askstring("Add app", "App name:", parent=root)
-        if not name or not name.strip():
-            return
-        command = simpledialog.askstring("Add app", f"Command or URL for {name.strip()}:", parent=root)
-        if not command or not command.strip():
-            status.config(text="add cancelled: a command or URL is required")
-            return
-        icon = (simpledialog.askstring("Add app", "Tile glyph — letter, symbol, or emoji (Enter = first letter):", parent=root) or "").strip()
-        color = (simpledialog.askstring("Add app", "Tile color #rrggbb (Enter = default):", parent=root) or "").strip()
-        tags = (simpledialog.askstring("Add app", "Category tags, e.g. movies, gaming (Enter = none):", parent=root) or "").strip()
-        entry = normalize(
-            {"name": name.strip(), "command": command.strip(), "icon": icon, "color": color, "tags": [t.strip() for t in tags.split(",") if t.strip()]},
-            len(entries),
-        )
-        entries.append(entry)
-        save_config(path, entries)
-        search_var.set("")
-        refresh()
-        status.config(text=f"added: {entry['name']}")
-
-    def selected_action() -> dict | None:
-        if not state["actions"]:
-            return None
-        return state["actions"][min(state["index"], len(state["actions"]) - 1)]
-
-    def toggle_favorite():
-        action = selected_action()
-        if action and action.get("entry"):
-            entry = action["entry"]
-            entry["favorite"] = not entry["favorite"]
-            save_config(path, entries)
-            refresh()
-            status.config(text=f"{entry['name']} {'favorited' if entry['favorite'] else 'unfavorited'}")
-
-    def remove_selected():
-        action = selected_action()
-        if action and action.get("entry"):
-            entry = action["entry"]
-            entries.remove(entry)
-            save_config(path, entries)
-            refresh()
-            status.config(text=f"removed: {entry['name']}")
-
-    def toggle_fullscreen():
-        state["fullscreen"] = not state["fullscreen"]
-        root.attributes("-fullscreen", state["fullscreen"])
-
-    def refresh():
-        query = search_var.get().strip()
-        state["matches"] = visible_entries(entries, query) if query else list(entries)
-        show_page(state["page"])
-
-    def make_scrolled(parent):
-        canvas = tk.Canvas(parent, bg=BG, bd=0, highlightthickness=0)
-        inner = tk.Frame(canvas, bg=BG)
-        window_id = canvas.create_window((0, 0), window=inner, anchor="nw")
-        scrollbar = tk.Scrollbar(parent, command=canvas.yview, width=9, troughcolor=BG, bg=BG, bd=0)
-        canvas.configure(yscrollcommand=scrollbar.set)
-        scrollbar.pack(side="right", fill="y")
-        canvas.pack(fill="both", expand=True)
-        canvas.bind("<Configure>", lambda _e: canvas.itemconfigure(window_id, width=canvas.winfo_width()))
-        inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
-
-        def on_wheel(event):
-            if hasattr(event, "delta") and event.delta:
-                canvas.yview_scroll(int(-event.delta / 120), "units")
-            elif getattr(event, "num", 0) == 4:
-                canvas.yview_scroll(-1, "units")
-            elif getattr(event, "num", 0) == 5:
-                canvas.yview_scroll(1, "units")
-
-        root.bind_all("<MouseWheel>", on_wheel)
-        root.bind_all("<Button-4>", on_wheel)
-        root.bind_all("<Button-5>", on_wheel)
-        return canvas, inner
-
-    def launch(entry: dict):
-        if entry["type"] == "url":
-            webbrowser.open(entry["command"])
-            status.config(text=f"opened in browser: {entry['name']}")
-        else:
-            cwd = entry.get("cwd")
+    def set_theme_file(theme: str) -> None:
+        data = {}
+        if path.is_file():
             try:
-                subprocess.Popen(
-                    entry["command"],
-                    shell=True,
-                    cwd=str(Path(cwd).expanduser()) if cwd else None,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                status.config(text=f"launched: {entry['name']}")
-            except OSError as exc:
-                status.config(text=f"error: {exc}")
-                return
-        record_history(history_path(path), entry["name"])
+                loaded = json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(loaded, dict):
+                    data = loaded
+            except (OSError, json.JSONDecodeError):
+                data = {}
+        data["$schema"] = "universal-launcher/v1"
+        data["theme"] = theme
+        data["entries"] = ui_state["entries"]
+        path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
-    def run_action(action: dict):
-        if action.get("entry"):
-            launch(action["entry"])
-        elif action.get("page"):
-            show_page(action["page"])
+    class DashboardHandler(http.server.BaseHTTPRequestHandler):
+        server_version = "Okelauncher/2.4"
 
-    def run_selected(_event=None):
-        action = selected_action()
-        if action:
-            run_action(action)
-        return "break"
-
-    def add_tile_grid(parent, items, big=True):
-        if big:
-            width, height, cols = TILE_W, TILE_H, COLS
-        else:
-            width, height, cols = RECENT_W, RECENT_H, RECENT_COLS
-        for i, action in enumerate(items):
-            entry = action.get("entry")
-            category = action.get("category")
-            color = (entry["color"] if entry else "") or SURFACE
-            glyph = (entry["icon"] if entry else "") or (category["glyph"] if category else "?")
-            label = entry["name"] if entry else (category["title"] if category else "")
-            title_fg = ON_COLOR if entry else FG
-            tile = tk.Frame(
-                parent,
-                bg=color,
-                width=width,
-                height=height,
-                highlightthickness=3,
-                highlightbackground=BG,
-                highlightcolor=ACCENT,
-                cursor="hand2",
-            )
-            tile.pack_propagate(False)
-            tk.Label(tile, text=glyph, bg=color, fg=title_fg, font=(family, 26 if big else 20, "bold")).pack(pady=(12 if big else 8, 0))
-            tk.Label(tile, text=label, bg=color, fg=title_fg, font=(family, 11 if big else 9, "bold"), wraplength=width - 18).pack(padx=6, pady=(0, 8))
-            tile.grid(row=i // cols, column=i % cols, padx=8, pady=8)
-            tile.bind("<Enter>", lambda _e, idx=i: select(idx))
-            tile.bind("<Button-1>", lambda _e, idx=i: choice(idx))
-            tile.bind("<Double-Button-1>", lambda _e, idx=i: choice(idx))
-            state["tiles"].append(tile)
-            state["actions"].append(action)
-
-    def choice(idx: int):
-        if 0 <= idx < len(state["actions"]):
-            run_action(state["actions"][idx])
-
-    def update_selection():
-        for i, tile in enumerate(state["tiles"]):
-            tile.config(highlightbackground=ACCENT if i == state["index"] else BG)
-
-    def select(idx: int):
-        if not state["tiles"]:
-            return
-        state["index"] = max(0, min(idx, len(state["tiles"]) - 1))
-        update_selection()
-        ensure_visible(state["index"])
-
-    def ensure_visible(idx: int):
-        canvas = state["canvas"]
-        if canvas is None or not state["tiles"]:
-            return
-        visible = canvas.winfo_height()
-        if visible <= 2:
-            return
-        grid = state["tiles"][idx].master
-        inner_height = max(grid.winfo_reqheight(), visible, 1)
-        tile = state["tiles"][idx]
-        y1, y2 = tile.winfo_y(), tile.winfo_y() + tile.winfo_height() + 18
-        offset = canvas.yview()[0] * inner_height
-        if y1 - offset < 0:
-            canvas.yview_moveto(max(0, y1 - 8) / inner_height)
-        elif y2 - offset > visible:
-            canvas.yview_moveto(min(1, max(0.0, y2 - visible + 8)) / inner_height)
-
-    def move(delta: int):
-        if not state["tiles"]:
-            return "break"
-        index = state["index"] + delta
-        if index < 0:
-            index = len(state["tiles"]) - 1
-        elif index >= len(state["tiles"]):
-            index = 0
-        select(index)
-        return "break"
-
-    def heading(parent, text):
-        tk.Label(parent, text=text, bg=BG, fg=FG, font=(family, 15, "bold")).pack(anchor="w", padx=6, pady=(4, 6))
-
-    def empty_note(parent, message):
-        tk.Label(parent, text=message, bg=BG, fg=MUTED, font=(family, 12), justify="center").pack(pady=42)
-
-    def build_home():
-        canvas, inner = make_scrolled(content)
-        state["canvas"] = canvas
-        heading(inner, "Main menu")
-        category_grid = tk.Frame(inner, bg=BG)
-        category_grid.pack(fill="x", padx=4)
-        add_tile_grid(category_grid, [{"category": category, "page": f"cat:{i}"} for i, category in enumerate(CATEGORIES)], big=True)
-        recents = [
-            entry
-            for name in [item.get("name") for item in load_history(history_path(path))]
-            for entry in entries
-            if entry["name"] == name
-        ][:7]
-        if recents:
-            heading(inner, "Recently played")
-            strip = tk.Frame(inner, bg=BG)
-            strip.pack(fill="x", padx=4, pady=(0, 10))
-            add_tile_grid(strip, [{"entry": entry} for entry in recents], big=False)
-        select(state["index"])
-
-    def build_entries_page(title, items):
-        canvas, inner = make_scrolled(content)
-        state["canvas"] = canvas
-        heading(inner, title)
-        grid = tk.Frame(inner, bg=BG)
-        grid.pack(fill="both", expand=True, padx=4)
-        add_tile_grid(grid, [{"entry": entry} for entry in items], big=True)
-        if not items:
-            empty_note(inner, "Nothing here yet.\nUse ＋ Add app (bottom right) and tag entries to fill categories.")
-
-    def build_system():
-        canvas, inner = make_scrolled(content)
-        state["canvas"] = canvas
-        heading(inner, "System monitor")
-        for name, value in system_stats():
-            row = tk.Frame(inner, bg=SURFACE, width=560, height=44)
-            row.pack_propagate(False)
-            row.pack(fill="x", padx=6, pady=4)
-            tk.Label(row, text=name, bg=SURFACE, fg=DIM, font=(family, 11), anchor="w", width=18).pack(side="left", padx=10)
-            tk.Label(row, text=value, bg=SURFACE, fg=FG, font=(family, 11), anchor="w").pack(side="left", padx=10)
-
-    def do_power(action: str):
-        if action == "exit":
-            root.destroy()
-            return
-        labels = {"sleep": "put this PC to sleep", "restart": "restart", "shutdown": "shut down"}
-        if not messagebox.askyesno("Power", f"Really {labels.get(action, action)} now?"):
-            status.config(text="power action cancelled")
-            return
-        command = power_command(action)
-        if not command:
-            return
-        try:
-            subprocess.Popen(command, shell=True)
-            status.config(text=f"{action} signal sent")
-        except OSError as exc:
-            status.config(text=f"error: {exc}")
-
-    def build_power():
-        state["canvas"] = None
-        heading(content, "Power & exit")
-        buttons = tk.Frame(content, bg=BG)
-        buttons.pack(padx=8, anchor="n")
-        for action, glyph, text in [("sleep", "🌙", "Sleep"), ("restart", "🔄", "Restart"), ("shutdown", "⏻", "Shut down"), ("exit", "✕", "Close launcher")]:
-            tk.Button(
-                buttons,
-                text=f"{glyph}  {text}",
-                command=lambda a=action: do_power(a),
-                bg=SURFACE,
-                fg=FG,
-                activebackground=ACCENT,
-                activeforeground=BG,
-                relief="flat",
-                font=(family, 13),
-                padx=22,
-                pady=14,
-                cursor="hand2",
-            ).pack(side="left", padx=8, pady=8)
-
-    def category_page(index: int):
-        category = CATEGORIES[index]
-        if category.get("special") == "system":
-            build_system()
-            return
-        if category.get("special") == "power":
-            build_power()
-            return
-        build_entries_page(category["title"], category_entries(entries, category))
-
-    def show_page(key: str):
-        state["page"] = key
-        state["tiles"], state["actions"] = [], []
-        state["index"] = min(state["index"], max(len(state["matches"]) - 1, 0))
-        for child in content.winfo_children():
-            child.destroy()
-        try:
-            nav_row = nav_list.index(key)
-            nav.selection_clear(0, "end")
-            nav.selection_set(nav_row)
-            nav.see(nav_row)
-        except ValueError:
+        def log_message(self, *_args) -> None:
             pass
-        if key == "home":
-            build_home()
-        elif key == "apps":
-            build_entries_page("All apps", state["matches"])
-        elif key == "favorites":
-            build_entries_page("Favourites", [entry for entry in entries if entry["favorite"]])
-        elif key == "stats":
-            build_system()
-        elif key.startswith("cat:"):
-            category_page(int(key.split(":", 1)[1]))
 
-    def on_nav(_event=None):
-        selection = nav.curselection()
-        if selection:
-            show_page(nav_list[selection[0]])
+        def _json(self, payload: object, code: int = 200) -> None:
+            body = json.dumps(payload).encode("utf-8")
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
 
-    def on_key(event):
-        if event.widget is search:
-            return None
-        if len(event.char) == 1 and event.char.isprintable() and event.char not in "\t":
-            search.focus_set()
-            search.insert("end", event.char)
-            return "break"
-        sym = event.keysym
-        if sym == "Escape":
-            root.destroy()
-            return "break"
-        if sym == "Up":
-            return move(-COLS)
-        if sym == "Down":
-            return move(COLS)
-        if sym == "Left":
-            return move(-1)
-        if sym == "Right":
-            return move(1)
-        if sym in ("Return", "KP_Enter"):
-            return run_selected(event)
-        if sym == "Home":
-            return select(0) or "break"
-        if sym == "End":
-            return select(len(state["tiles"]) - 1) or "break"
-        if sym == "Prior":
-            if state["canvas"] is not None:
-                state["canvas"].yview_scroll(-1, "pages")
-            return "break"
-        if sym == "Next":
-            if state["canvas"] is not None:
-                state["canvas"].yview_scroll(1, "pages")
-            return "break"
-        if sym == "F11":
-            toggle_fullscreen()
-            return "break"
-        if sym == "Tab":
-            nav.focus_set()
-            return "break"
-        return None
+        def _body(self) -> dict:
+            length = int(self.headers.get("Content-Length") or 0)
+            if length <= 0 or length > 65536:
+                return {}
+            try:
+                data = json.loads(self.rfile.read(length).decode("utf-8"))
+            except (ValueError, UnicodeDecodeError):
+                return {}
+            return data if isinstance(data, dict) else {}
 
-    search.bind("<Return>", run_selected)
-    search.bind("<Down>", lambda _e: nav.focus_set())
-    search.bind("<Escape>", lambda _e: root.destroy())
-    search_var.trace_add("write", refresh)
-    nav.bind("<<ListboxSelect>>", on_nav)
-    nav.bind("<Return>", on_nav)
-    root.bind("<Key>", on_key)
-    root.bind("<F11>", lambda _e: toggle_fullscreen())
-    for label_text, command_fn in [
-        ("＋ Add app", add_app_dialog),
-        ("★ Favorite", toggle_favorite),
-        ("✕ Remove", remove_selected),
-        ("⛶ Fullscreen", toggle_fullscreen),
-        ("Close", root.destroy),
-    ]:
-        small_button(label_text, command_fn).pack(side="left", padx=(0, 6), pady=(0, 2))
-    search.focus_set()
-    show_page("home")
-    tick()
-    if weather_config is not None:
-        weather_label.config(text="locating…")
-        fetch_weather_async(root, weather_label, weather_config)
-    root.mainloop()
+        def do_GET(self) -> None:
+            route = urllib.parse.urlparse(self.path).path
+            if route == "/" or route == "/index.html":
+                try:
+                    html = dashboard_path().read_bytes()
+                except OSError:
+                    self.send_error(500, "dashboard.html missing beside the launcher")
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(html)))
+                self.end_headers()
+                self.wfile.write(html)
+            elif route == "/api/state":
+                with lock:
+                    payload = {
+                        "theme": ui_state["theme"],
+                        "categories": CATEGORIES,
+                        "entries": ui_state["entries"],
+                        "history": [item.get("name", "") for item in load_history(history_path(path))],
+                    }
+                self._json(payload)
+            elif route == "/api/stats":
+                self._json([[row[0], row[1], int(row[2]) if row[2] is not None else 0] for row in system_stats()])
+            elif route == "/api/weather":
+                if weather_config is None:
+                    self._json({"ok": False, "text": "\u2014", "cond": "", "location": "weather off", "glyph": "\u25cc"})
+                    return
+                if ui_state["weather"] is None:
+                    ui_state["weather"] = fetch_weather(weather_config)
+                self._json(ui_state["weather"])
+            else:
+                self.send_error(404)
+
+        def do_POST(self) -> None:
+            route = urllib.parse.urlparse(self.path).path
+            body = self._body()
+            if route == "/api/launch":
+                entry = find_by_name(ui_state["entries"], str(body.get("name", "")))
+                if not entry:
+                    self._json({"ok": False, "error": f"no entry matches {body.get('name')!r}"})
+                    return
+                if entry["type"] == "url":
+                    webbrowser.open(entry["command"])
+                else:
+                    cwd = entry.get("cwd")
+                    try:
+                        subprocess.Popen(
+                            entry["command"],
+                            shell=True,
+                            cwd=str(Path(cwd).expanduser()) if cwd else None,
+                            stdin=subprocess.DEVNULL,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                    except OSError as exc:
+                        self._json({"ok": False, "error": str(exc)})
+                        return
+                record_history(history_path(path), entry["name"])
+                self._json({"ok": True})
+            elif route == "/api/favorite":
+                entry = find_by_name(ui_state["entries"], str(body.get("name", "")))
+                if entry:
+                    entry["favorite"] = not entry["favorite"]
+                    persist()
+                    self._json({"ok": True, "favorite": entry["favorite"]})
+                else:
+                    self._json({"ok": False, "error": "unknown app"})
+            elif route == "/api/remove":
+                entry = find_by_name(ui_state["entries"], str(body.get("name", "")))
+                if entry:
+                    ui_state["entries"].remove(entry)
+                    persist()
+                self._json({"ok": bool(entry)})
+            elif route == "/api/add":
+                payload = {k: v for k, v in body.items() if k in ("name", "command", "type", "cwd", "tags", "favorite", "icon", "color")}
+                if not payload.get("name") or not payload.get("command"):
+                    self._json({"ok": False, "error": "name and command are required"})
+                    return
+                try:
+                    entry = normalize(payload, len(ui_state["entries"]))
+                except ValueError as exc:
+                    self._json({"ok": False, "error": str(exc)})
+                    return
+                with lock:
+                    ui_state["entries"].append(entry)
+                    persist()
+                self._json({"ok": True, "entry": entry})
+            elif route == "/api/theme":
+                theme = str(body.get("theme", "")).lower()
+                if theme not in VALID_THEMES:
+                    self._json({"ok": False, "error": f"theme must be one of {sorted(VALID_THEMES)}"})
+                    return
+                with lock:
+                    ui_state["theme"] = theme
+                    try:
+                        set_theme_file(theme)
+                    except OSError:
+                        self._json({"ok": False, "error": "could not save theme to launchers.json"})
+                        return
+                self._json({"ok": True})
+            elif route == "/api/power":
+                command = power_command(str(body.get("action", "")))
+                if not command:
+                    self._json({"ok": False, "error": "unsupported power action"})
+                    return
+                subprocess.Popen(command, shell=True)
+                self._json({"ok": True})
+            elif route == "/api/shutdown":
+                ui_state["stop"].set()
+                self._json({"ok": True})
+            else:
+                self.send_error(404)
+
+    try:
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), DashboardHandler)
+    except OSError as exc:
+        sys.exit(f"error: cannot start dashboard server: {exc}")
+    url = f"http://127.0.0.1:{server.server_address[1]}/"
+    print(f"Okelauncher dashboard running at {url}  (Ctrl+C, or Power & Exit > Close launcher, to stop)")
+    print("if your browser did not open automatically, copy the address above into a browser tab")
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        webbrowser.open_new_tab(url)
+    except Exception:
+        print("could not open a browser window automatically")
+    try:
+        while not ui_state["stop"].wait(0.25):
+            pass
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.shutdown()
     return 0
 
 
@@ -1081,7 +827,7 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=None, help="config file (default: launchers.json beside script, else ~/.config/universal-launcher/launchers.json)")
     parser.add_argument("--list", action="store_true", help="list entries")
     parser.add_argument("--add", action="store_true", help="add an entry interactively")
-    parser.add_argument("--gui", action="store_true", help="open the dashboard window (default for the windowed EXE)")
+    parser.add_argument("--gui", action="store_true", help="open the dashboard UI in your web browser (default for the windowed EXE)")
     parser.add_argument("--remove", metavar="NAME", help="remove an entry")
     args = parser.parse_args()
 
@@ -1105,7 +851,7 @@ def main() -> int:
             sys.exit(f"error: no entry matches {args.name!r}")
         return run_entry(entry)
     if args.gui or (getattr(sys, "frozen", False) and windowed):
-        return launch_gui(entries, path, resolve_weather_config(path), resolve_theme(path))
+        return launch_dashboard(entries, path, resolve_weather_config(path), resolve_theme(path))
     return interactive(entries, path)
 
 
