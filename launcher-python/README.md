@@ -1,6 +1,6 @@
-# Oke Launcher (Python)
+# Oke OS (Python)
 
-A zero-dependency, "next-gen console OS" launcher for Windows (also runs on macOS/Linux) built with Python's standard library only. Open a prebuilt EXE or run `launch.py` and the launcher serves a frosted-glass TV dashboard on your own machine (`127.0.0.1` only) and opens it in your browser — a living-room menu for your PC.
+Oke OS is a zero-dependency, "next-gen console OS" shell for Windows (also runs on macOS/Linux) built with Python's standard library only. Open a prebuilt EXE or run `launch.py` and it serves a frosted-glass TV dashboard on your own machine (`127.0.0.1` only) and opens it in your browser — with a boot splash, lock screen and power controls, it turns any PC into a console-style appliance.
 
 ![type: no third-party dependencies](https://img.shields.io/badge/stdlib%20only-no%20pip%20installs-brightgreen)
 
@@ -13,6 +13,7 @@ First run creates a starter config with a few example tiles (Netflix, Spotify, Y
 
 ## The dashboard (Next-Gen TV & Console UI)
 
+- **OS experience** — animated **boot splash** ("Mounting launchers.json… → Welcome to Oke OS") and a full-screen **lock screen** (giant clock, date, weather; click or any key to unlock; header 🔒 button or Power page > Lock).
 - **Frosted glass surfaces + ambient glow orbs** that shift colour per category.
 - **Top status bar** — brand, live CPU / RAM / Disk telemetry pills, zero-config weather chip, sound toggle, search (press `/`), themes drawer, and live clock + date.
 - **Left floating nav rail** with a spring-animated active pill: Home, All apps, Favourites, System monitor, all 20 categories, and Power & Exit.

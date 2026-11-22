@@ -557,7 +557,7 @@ def fallback_picker(entries: list[dict]) -> int:
 
 def render(matches: list[dict], query: str, selected: int) -> None:
     print("\033[2J\033[H", end="")
-    print(f"{BOLD}Universal launcher{RESET}  {DIM}type to search · ↑↓ select · Enter run · f favorite · q quit{RESET}\n")
+    print(f"{BOLD}Oke OS{RESET}  {DIM}type to search · ↑↓ select · Enter run · f favorite · q quit{RESET}\n")
     if not matches:
         print(f"{DIM}  no matches for {query!r}{RESET}")
     for i, entry in enumerate(matches):
@@ -601,7 +601,7 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
         path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     class DashboardHandler(http.server.BaseHTTPRequestHandler):
-        server_version = "Okelauncher/2.4"
+        server_version = "OkeOS/2.4"
 
         def log_message(self, *_args) -> None:
             pass
@@ -642,6 +642,7 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
             elif route == "/api/state":
                 with lock:
                     payload = {
+                        "os": {"name": "Oke OS", "version": "2.4"},
                         "theme": ui_state["theme"],
                         "categories": CATEGORIES,
                         "entries": ui_state["entries"],
@@ -745,7 +746,7 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
     except OSError as exc:
         sys.exit(f"error: cannot start dashboard server: {exc}")
     url = f"http://127.0.0.1:{server.server_address[1]}/"
-    print(f"Okelauncher dashboard running at {url}  (Ctrl+C, or Power & Exit > Close launcher, to stop)")
+    print(f"Oke OS dashboard running at {url}  (Ctrl+C, or Power & Exit > Close launcher, to stop)")
     print("if your browser did not open automatically, copy the address above into a browser tab")
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
@@ -822,7 +823,7 @@ def cmd_remove(entries: list[dict], path: Path, name: str) -> int:
 def main() -> int:
     windowed = sys.stdout is None
     force_utf8_output()
-    parser = argparse.ArgumentParser(description="Oke Launcher: TV-style dashboard launcher")
+    parser = argparse.ArgumentParser(description="Oke OS: console-grade TV dashboard shell")
     parser.add_argument("name", nargs="?", help="run the first entry matching this name")
     parser.add_argument("--config", type=Path, default=None, help="config file (default: launchers.json beside script, else ~/.config/universal-launcher/launchers.json)")
     parser.add_argument("--list", action="store_true", help="list entries")

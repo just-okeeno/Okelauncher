@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Okelauncher — Next-Gen TV & Console UI</title>
+<title>Oke OS — Next-Gen TV &amp; Console UI</title>
 <style>
   :root {
     --bg-base: #07090e;
@@ -166,6 +166,33 @@
     background: var(--glass-surface); border: 1px solid var(--glass-border); color: var(--text-primary);
     transition: transform 0.35s var(--ease-spring), background 0.3s ease; }
   .btn-ghost:hover { transform: scale(1.04); background: var(--glass-surface-hover); }
+  .boot-screen {
+    position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 18px; background: var(--bg-base);
+    transition: opacity 0.65s var(--ease-out-expo);
+  }
+  .boot-logo {
+    width: 84px; height: 84px; border-radius: 26px; display: flex; align-items: center; justify-content: center;
+    font-size: 40px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    box-shadow: 0 24px 60px -12px var(--accent-glow); animation: bootPulse 1.6s ease-in-out infinite alternate;
+  }
+  @keyframes bootPulse { 0% { transform: scale(1); opacity: 0.85; } 100% { transform: scale(1.06); opacity: 1; } }
+  .boot-name { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+  .boot-name span { background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .boot-status { font-size: 12px; opacity: 0.6; font-weight: 500; min-height: 16px; }
+  .boot-bar-wrap { width: 260px; }
+  .lock-screen {
+    position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+    background: rgba(4, 6, 12, 0.55); backdrop-filter: blur(30px) saturate(160%); -webkit-backdrop-filter: blur(30px) saturate(160%);
+    opacity: 0; pointer-events: none; transition: opacity 0.5s var(--ease-out-expo);
+  }
+  .lock-screen.open { opacity: 1; pointer-events: auto; }
+  .lock-clock { font-size: 96px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; text-shadow: 0 8px 40px rgba(0,0,0,0.45); }
+  .lock-date { font-size: 20px; font-weight: 600; opacity: 0.85; }
+  .lock-weather { font-size: 14px; opacity: 0.7; }
+  .lock-hint { font-size: 12px; opacity: 0.55; margin-top: 26px; letter-spacing: 0.08em; text-transform: uppercase; animation: hintPulse 2.4s ease-in-out infinite; }
+  @keyframes hintPulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 0.75; } }
 </style>
 </head>
 <body>
@@ -184,10 +211,10 @@
              background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); box-shadow: 0 8px 20px -4px var(--accent-glow);">✦</div>
         <div>
           <div style="display:flex; align-items:center; gap:8px;">
-            <span style="font-weight:800; letter-spacing:-0.02em; font-size:18px; line-height:1;">Okelauncher</span>
+            <span style="font-weight:800; letter-spacing:-0.02em; font-size:18px; line-height:1;">Oke OS</span>
             <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,0.10); border:1px solid rgba(255,255,255,0.15);">OS 2.4</span>
           </div>
-          <p style="font-size:12px; opacity:0.65; margin:2px 0 0;">Universal Console &amp; Media Hub</p>
+          <p style="font-size:12px; opacity:0.65; margin:2px 0 0;">Console-Grade Media Shell</p>
         </div>
       </div>
 
@@ -204,6 +231,11 @@
             </span>
             <span id="weatherCity" style="display:block; font-size:10px; opacity:0.6; font-weight:500;">locating…</span>
           </span>
+        </button>
+
+        <button onclick="lockOS()" title="Lock Oke OS" class="glass-pill"
+                style="border-radius:15px; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; border:1px solid var(--glass-border); background:var(--glass-surface); color:inherit;">
+          🔒
         </button>
 
         <button onclick="toggleSound()" title="Toggle UI sounds" class="glass-pill"
@@ -423,6 +455,20 @@
     </div>
   </div>
 
+  <div id="bootScreen" class="boot-screen">
+    <div class="boot-logo">✦</div>
+    <div class="boot-name">Oke <span>OS</span></div>
+    <div class="boot-bar-wrap"><div class="progress-track"><div id="bootBar" class="progress-fill shimmer-bar" style="width:6%;"></div></div></div>
+    <div id="bootStatus" class="boot-status">Starting Oke OS…</div>
+  </div>
+
+  <div id="lockScreen" class="lock-screen" onclick="unlockOS()">
+    <div id="lockClock" class="lock-clock font-mono-num">—</div>
+    <div id="lockDate" class="lock-date">—</div>
+    <div id="lockWeather" class="lock-weather"></div>
+    <div class="lock-hint">Click or press any key to unlock</div>
+  </div>
+
   <script>
     const THEME_PRESETS = [
       { id: "obsidian", name: "Midnight Obsidian", desc: "Deep console slate with electric cyan glow", swatch: "linear-gradient(135deg,#0f172a,#38bdf8,#6366f1)" },
@@ -451,6 +497,26 @@
       return resp.json().catch(() => ({}));
     }
 
+    const BOOT_STEPS = ["Mounting launchers.json…", "Calibrating glass engine…", "Syncing system telemetry…", "Detecting local weather…", "Preparing desktop…"];
+    let bootStep = 0;
+    const bootTimer = setInterval(() => {
+      bootStep = (bootStep + 1) % BOOT_STEPS.length;
+      document.getElementById("bootStatus").textContent = BOOT_STEPS[bootStep];
+      const bar = document.getElementById("bootBar");
+      bar.style.width = Math.min(92, parseInt(bar.style.width || "6") + 9) + "%";
+    }, 420);
+
+    function finishBoot() {
+      clearInterval(bootTimer);
+      document.getElementById("bootStatus").textContent = "Welcome to Oke OS";
+      document.getElementById("bootBar").style.width = "100%";
+      setTimeout(() => {
+        const boot = document.getElementById("bootScreen");
+        boot.style.opacity = "0";
+        setTimeout(() => (boot.style.display = "none"), 700);
+      }, 320);
+    }
+
     async function boot() {
       state = await (await fetch("/api/state")).json();
       applyTheme(LEGACY_THEMES[state.theme] || state.theme, false);
@@ -461,8 +527,21 @@
       setInterval(pollStats, 2400);
       refreshWeather();
       selectCategory("home");
+      setTimeout(finishBoot, 900);
     }
     boot();
+
+    function lockOS() {
+      playUiSound("select");
+      document.getElementById("lockScreen").classList.add("open");
+    }
+    function unlockOS() {
+      const lock = document.getElementById("lockScreen");
+      if (lock.classList.contains("open")) {
+        lock.classList.remove("open");
+        playUiSound("hover");
+      }
+    }
 
     function navItems() {
       const items = [
@@ -665,7 +744,8 @@
         ["🌙", "Sleep", "Put this PC to sleep", "sleep"],
         ["🔄", "Restart", "Restart the operating system", "restart"],
         ["⏻", "Shut down", "Power off the machine", "shutdown"],
-        ["✕", "Close launcher", "Stop Okelauncher and close this window", "exit"],
+        ["🔒", "Lock", "Lock Oke OS and show the clock", "lock"],
+        ["✕", "Close launcher", "Shut Oke OS down and close this window", "exit"],
       ];
       actions.forEach(([glyph, title, desc, action], idx) => {
         const card = document.createElement("div");
@@ -679,13 +759,16 @@
             <h3 style="font-weight:700; font-size:16px; margin:0;">${title}</h3>
             <p style="font-size:12px; opacity:0.65; margin:4px 0 0;">${desc}</p>
           </div>`;
-        card.addEventListener("click", () => confirmPower(action, title));
+        card.addEventListener("click", () => {
+          if (action === "lock") { lockOS(); return; }
+          confirmPower(action, title);
+        });
         grid.appendChild(card);
       });
     }
 
     function confirmPower(action, title) {
-      if (action === "exit") { post("/api/shutdown").then(() => { window.close(); document.body.innerHTML = "<p style='text-align:center;margin-top:40vh;font-family:sans-serif;opacity:0.8'>Okelauncher closed. You can close this tab.</p>"; }); return; }
+      if (action === "exit") { post("/api/shutdown").then(() => { window.close(); document.body.innerHTML = "<p style='text-align:center;margin-top:40vh;font-family:sans-serif;opacity:0.8'>Oke OS closed. You can close this tab.</p>"; }); return; }
       document.getElementById("confirmIcon").textContent = title === "Shut down" ? "⏻" : "🌙";
       document.getElementById("confirmTitle").textContent = title + "?";
       document.getElementById("confirmText").textContent = "Really " + title.toLowerCase() + " this PC right now?";
@@ -896,6 +979,7 @@
     }
 
     document.addEventListener("keydown", (e) => {
+      if (document.querySelector("#lockScreen.open")) { unlockOS(); return; }
       const anyModalOpen = document.querySelector(".backdrop-modal.open");
       if (e.key === "Escape") { document.querySelectorAll(".backdrop-modal.open").forEach((m) => m.classList.remove("open")); return; }
       if (anyModalOpen) return;
@@ -915,8 +999,12 @@
 
     function updateClock() {
       const now = new Date();
-      document.getElementById("liveClock").textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      document.getElementById("liveDate").textContent = now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+      const time = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const date = now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+      document.getElementById("liveClock").textContent = time;
+      document.getElementById("liveDate").textContent = date;
+      document.getElementById("lockClock").textContent = time;
+      document.getElementById("lockDate").textContent = date;
     }
 
     let statsSeen = false;
@@ -951,6 +1039,7 @@
         weatherData = await (await fetch("/api/weather")).json();
         if (!weatherData || weatherData.ok === false) { setWeatherChip("—", "unavailable", "weather off", "◌"); return; }
         setWeatherChip(weatherData.text, "", weatherData.location || "your location", weatherData.glyph || "⛅");
+        document.getElementById("lockWeather").textContent = weatherData.text + " · " + (weatherData.location || "");
       } catch (err) {
         setWeatherChip("—", "", "", "◌");
       }
