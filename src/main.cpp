@@ -7,8 +7,12 @@
 #ifndef _UNICODE
 #define _UNICODE
 #endif
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #include <windowsx.h>
 #include <d2d1.h>
@@ -212,7 +216,7 @@ static std::vector<std::wstring> ReadLibraries() {
         size_t e = data.find('\n', pos);
         std::string line = data.substr(pos, (e == std::string::npos ? data.size() : e) - pos);
         pos = (e == std::wstring::npos) ? data.size() : e + 1;
-        std::wstring w = Utf8ToWide(Trim(line));
+        std::wstring w = Trim(Utf8ToWide(line));
         if (w.rfind(L"libraries=", 0) == 0) w = w.substr(10);
         w = Trim(w);
         if (w.empty()) continue;
