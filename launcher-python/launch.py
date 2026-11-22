@@ -19,12 +19,14 @@ import argparse
 import ctypes
 import datetime
 import json
+import mimetypes
 import os
 import shutil
 import string
 import subprocess
 import sys
 import threading
+import urllib.parse
 import webbrowser
 from pathlib import Path
 
@@ -63,6 +65,168 @@ CATEGORIES = [
     {"title": "Connected Devices", "glyph": "🔌", "tags": ["devices", "bluetooth"], "desc": "Bluetooth, printers, controllers and externals."},
     {"title": "Power & Exit", "glyph": "⏻", "tags": ["power"], "desc": "Sleep, restart, shutdown and close launcher.", "special": "power"},
 ]
+
+
+PICTURE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}
+VIDEO_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".webm", ".m4v", ".mpg", ".wmv"}
+SCAN_SKIP_DIRS = {
+    "appdata", "node_modules", "__pycache__", ".git", "windows", "program files", "program files (x86)",
+    "programdata", "$recycle.bin", "system volume information", ".cache", "venv", "site-packages", "recovery",
+}
+SCAN_MAX_FILES = 4000
+SCAN_MAX_DEPTH = 5
+
+STORE_CATALOG = [
+    {"id": "netflix", "name": "Netflix", "desc": "Movies & TV streaming", "icon": "N", "color": "#e50914", "tags": ["movies", "tv", "streaming"], "url": "https://www.netflix.com", "download": "https://apps.microsoft.com/detail/9wzdncrfj3tj"},
+    {"id": "youtube", "name": "YouTube", "desc": "Video sharing & live streams", "icon": "\u25b6", "color": "#ff0000", "tags": ["videos", "streaming"], "url": "https://www.youtube.com", "download": "https://apps.microsoft.com/detail/9wzdncrfj3tj"},
+    {"id": "spotify", "name": "Spotify", "desc": "Music, playlists & podcasts", "icon": "\u266b", "color": "#1db954", "tags": ["music", "audio"], "url": "https://open.spotify.com", "download": "https://www.spotify.com/download/windows/"},
+    {"id": "twitch", "name": "Twitch", "desc": "Live streaming & gaming", "icon": "T", "color": "#9146ff", "tags": ["gaming", "streaming"], "url": "https://www.twitch.tv", "download": "https://www.microsoft.com/store/productId/9nblggh4zkw9"},
+    {"id": "discord", "name": "Discord", "desc": "Voice, video & text chat", "icon": "\U0001f3a7", "color": "#5865f2", "tags": ["apps", "tools"], "url": "https://discord.com/app", "download": "https://discord.com/download"},
+    {"id": "steam", "name": "Steam", "desc": "PC game library & store", "icon": "\U0001f3ae", "color": "#1b2838", "tags": ["gaming", "games"], "url": "https://store.steampowered.com", "download": "https://store.steampowered.com/about/"},
+    {"id": "epic", "name": "Epic Games", "desc": "Fortnite, Unreal & free games", "icon": "\U0001f3af", "color": "#2a2a2a", "tags": ["gaming", "games"], "url": "https://store.epicgames.com", "download": "https://store.epicgames.com/download"},
+    {"id": "vlc", "name": "VLC Media Player", "desc": "Play every video format", "icon": "\U0001f393", "color": "#ff8800", "tags": ["videos", "movies"], "url": "https://www.videolan.org/vlc/", "download": "https://www.videolan.org/vlc/download-windows.html"},
+    {"id": "plex", "name": "Plex", "desc": "Your personal media server", "icon": "\U0001f3ac", "color": "#e5a00d", "tags": ["movies", "tv", "videos"], "url": "https://app.plex.tv", "download": "https://www.plex.tv/media-server-downloads/"},
+    {"id": "vscode", "name": "VS Code", "desc": "Code editor & development", "icon": "\U0001f4bb", "color": "#0078d4", "tags": ["productivity", "tools"], "url": "https://vscode.dev", "download": "https://code.visualstudio.com/download"},
+    {"id": "chrome", "name": "Google Chrome", "desc": "Fast, secure web browser", "icon": "\U0001f310", "color": "#4285f4", "tags": ["browser", "internet"], "url": "https://www.google.com", "download": "https://www.google.com/chrome/downloads/"},
+    {"id": "firefox", "name": "Firefox", "desc": "Independent open-source browser", "icon": "\U0001f98a", "color": "#ff7139", "tags": ["browser", "internet"], "url": "https://www.mozilla.org", "download": "https://www.mozilla.org/firefox/download/thanks/"},
+    {"id": "obs", "name": "OBS Studio", "desc": "Screen recording & streaming", "icon": "\U0001f3a5", "color": "#302e31", "tags": ["tools", "utilities"], "url": "https://obsproject.com", "download": "https://obsproject.com/download"},
+    {"id": "qbittorrent", "name": "qBittorrent", "desc": "Downloads & transfers", "icon": "\u2b07", "color": "#2b5cb8", "tags": ["downloads", "tools"], "url": "https://www.qbittorrent.org", "download": "https://www.qbittorrent.org/download.php"},
+    {"id": "whatsapp", "name": "WhatsApp", "desc": "Messaging & calls", "icon": "\U0001f4ac", "color": "#25d366", "tags": ["apps", "tools"], "url": "https://web.whatsapp.com", "download": "https://www.whatsapp.com/download"},
+    {"id": "openrarrow", "name": "OneDrive", "desc": "Cloud files & sync", "icon": "\u2601", "color": "#0364b8", "tags": ["cloud", "network", "files"], "url": "https://onedrive.live.com", "download": "https://www.microsoft.com/microsoft-365/onedrive/download"},
+]
+
+
+def hash_pin(pin: str) -> str:
+    import hashlib
+    import secrets
+
+    salt = secrets.token_hex(16)
+    digest = hashlib.sha256((salt + pin).encode("utf-8")).hexdigest()
+    return f"{salt}${digest}"
+
+
+def verify_pin(stored: str | None, pin: str) -> bool:
+    import hashlib
+    import hmac
+
+    if not stored:
+        return True
+    try:
+        salt, digest = stored.split("$", 1)
+    except ValueError:
+        return False
+    candidate = hashlib.sha256((salt + pin).encode("utf-8")).hexdigest()
+    return hmac.compare_digest(candidate, digest)
+
+
+def load_profiles(path: Path) -> dict:
+    profiles = {"users": {}, "active": ""}
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        if isinstance(data, dict) and isinstance(data.get("profiles"), dict):
+            raw = data["profiles"]
+            users = raw.get("users", raw)
+            if isinstance(users, dict):
+                for name, info in users.items():
+                    if isinstance(name, str) and name and not name.startswith("$"):
+                        users_pin = info.get("pin") if isinstance(info, dict) else None
+                        profiles["users"][name] = {"pin": users_pin if isinstance(users_pin, str) else None}
+            active = raw.get("active") if isinstance(raw, dict) else None
+            if isinstance(active, str):
+                profiles["active"] = active
+    except (OSError, json.JSONDecodeError):
+        pass
+    if not profiles["users"]:
+        profiles["users"] = {"Owner": {"pin": None}}
+    if profiles["active"] not in profiles["users"]:
+        profiles["active"] = next(iter(profiles["users"]))
+    return profiles
+
+
+def save_profiles(path: Path, profiles: dict) -> None:
+    data = {}
+    if Path(path).is_file():
+        try:
+            loaded = json.loads(Path(path).read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                data = loaded
+        except (OSError, json.JSONDecodeError):
+            data = {}
+    data["$schema"] = "universal-launcher/v1"
+    data["profiles"] = profiles
+    if "entries" not in data:
+        data["entries"] = []
+    Path(path).write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def profile_history_path(path: Path, profile: str, first_profile: str) -> Path:
+    if profile == first_profile:
+        return path.parent / "launcher_history.json"
+    safe = "".join(ch if ch.isalnum() else "-" for ch in profile.lower()).strip("-") or "user"
+    return path.parent / f"launcher_history_{safe}.json"
+
+
+def media_scan_roots() -> list[Path]:
+    home = Path.home()
+    candidates = [home / name for name in ("Pictures", "Videos", "Downloads", "Desktop", "Music", "Movies", "Photos")]
+    onedrive = os.environ.get("OneDrive")
+    if onedrive:
+        candidates += [Path(onedrive) / name for name in ("Pictures", "Videos", "Desktop")]
+    existing = [Path(os.path.normpath(c)) for c in candidates if Path(c).is_dir()]
+    unique = list(dict.fromkeys(existing))
+    if not unique:
+        unique = [home]
+    return unique
+
+
+def run_media_scan() -> dict:
+    import datetime
+
+    folders: dict[str, dict[str, int]] = {}
+    files: list[dict] = []
+    for root in media_scan_roots():
+        for dirpath, dirnames, filenames in os.walk(root):
+            depth = len(Path(dirpath).relative_to(root).parts)
+            if depth >= SCAN_MAX_DEPTH:
+                dirnames[:] = []
+            dirnames[:] = [d for d in dirnames if d.lower() not in SCAN_SKIP_DIRS and not d.startswith((".", "$"))]
+            folder = str(Path(dirpath))
+            for filename in filenames:
+                ext = Path(filename).suffix.lower()
+                kind = "picture" if ext in PICTURE_EXTS else "video" if ext in VIDEO_EXTS else None
+                if kind is None:
+                    continue
+                full = str(Path(dirpath) / filename)
+                try:
+                    mtime = os.path.getmtime(full)
+                except OSError:
+                    mtime = 0
+                entry = {"path": full, "kind": kind, "mtime": mtime, "folder": folder, "name": filename}
+                files.append(entry)
+                bucket = folders.setdefault(folder, {"pictures": 0, "videos": 0})
+                bucket["pictures" if kind == "picture" else "videos"] += 1
+                if len(files) >= SCAN_MAX_FILES:
+                    break
+            if len(files) >= SCAN_MAX_FILES:
+                break
+        if len(files) >= SCAN_MAX_FILES:
+            break
+    files.sort(key=lambda f: -f["mtime"])
+    return {
+        "scanned_at": datetime.datetime.now().isoformat(timespec="seconds"),
+        "files": files,
+        "folders": dict(sorted(folders.items(), key=lambda kv: -(kv[1]["pictures"] + kv[1]["videos"]))),
+        "truncated": len(files) >= SCAN_MAX_FILES,
+    }
+
+
+def open_with_system(target: Path) -> None:
+    if os.name == "nt":
+        os.startfile(target)
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(target)])
+    else:
+        subprocess.Popen(["xdg-open", str(target)])
 
 
 def script_base() -> Path:
@@ -153,7 +317,7 @@ def save_config(path: Path, entries: list[dict]) -> None:
         current = {}
     payload = {"$schema": "universal-launcher/v1"}
     if isinstance(current, dict):
-        for key in ("weather", "theme"):
+        for key in ("weather", "theme", "profiles"):
             if key in current:
                 payload[key] = current[key]
     payload["entries"] = entries
@@ -578,10 +742,78 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
         "theme": THEME_ALIASES.get(theme_name, theme_name),
         "stop": threading.Event(),
         "weather": None,
+        "scan": {"status": "idle", "data": None},
     }
     if ui_state["theme"] not in VALID_THEMES:
         ui_state["theme"] = "obsidian"
+    ui_state["profiles"] = load_profiles(path)
+    ui_state["profile"] = ui_state["profiles"]["active"]
+    first_profile = next(iter(ui_state["profiles"]["users"]))
     lock = threading.Lock()
+
+    def hp() -> Path:
+        return profile_history_path(path, ui_state["profile"], first_profile)
+
+    def start_scan() -> None:
+        def work():
+            try:
+                result = run_media_scan()
+            except Exception as exc:
+                with lock:
+                    ui_state["scan"] = {"status": "error", "data": None, "error": str(exc)}
+                return
+            with lock:
+                ui_state["scan"] = {"status": "done", "data": result}
+
+        def with_lock_guard():
+            with lock:
+                if ui_state["scan"]["status"] == "scanning":
+                    return False
+                ui_state["scan"] = {"status": "scanning", "data": ui_state["scan"].get("data")}
+            return True
+
+        if with_lock_guard():
+            threading.Thread(target=work, daemon=True).start()
+
+    def state_snapshot() -> dict:
+        profiles = ui_state["profiles"]
+        scan = ui_state["scan"]
+        with lock:
+            return {
+                "os": {"name": "Oke OS", "version": "2.4"},
+                "theme": ui_state["theme"],
+                "categories": CATEGORIES,
+                "entries": ui_state["entries"],
+                "history": [item.get("name", "") for item in load_history(hp())],
+                "store": STORE_CATALOG,
+                "profiles": {
+                    "users": [{"name": name, "has_pin": bool(info.get("pin"))} for name, info in profiles["users"].items()],
+                    "active": ui_state["profile"],
+                    "any_pin": any(info.get("pin") for info in profiles["users"].values()),
+                },
+                "scan": {
+                    "status": scan["status"],
+                    "folders": (scan["data"] or {}).get("folders", {}),
+                    "scanned_at": (scan["data"] or {}).get("scanned_at"),
+                    "total": len((scan["data"] or {}).get("files", [])),
+                },
+            }
+
+    def resolve_media_file(src: str) -> Path | None:
+        scan = ui_state["scan"].get("data") or {}
+        wanted = os.path.normpath(src)
+        for entry in scan.get("files", []):
+            if os.path.normpath(entry["path"]) == wanted:
+                return Path(entry["path"])
+        return None
+
+    def resolve_scan_folder(src: str) -> Path | None:
+        scan = ui_state["scan"].get("data") or {}
+        wanted = os.path.normpath(src)
+        for folder in scan.get("folders", {}):
+            if os.path.normpath(folder) == wanted:
+                return Path(folder)
+        return None
 
     def persist() -> None:
         save_config(path, ui_state["entries"])
@@ -640,15 +872,50 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
                 self.end_headers()
                 self.wfile.write(html)
             elif route == "/api/state":
+                self._json(state_snapshot())
+            elif route == "/api/scan-status":
                 with lock:
-                    payload = {
-                        "os": {"name": "Oke OS", "version": "2.4"},
-                        "theme": ui_state["theme"],
-                        "categories": CATEGORIES,
-                        "entries": ui_state["entries"],
-                        "history": [item.get("name", "") for item in load_history(history_path(path))],
-                    }
-                self._json(payload)
+                    scan = ui_state["scan"]
+                    data = scan.get("data") or {}
+                self._json({
+                    "status": scan["status"],
+                    "scanned_at": data.get("scanned_at"),
+                    "folders": data.get("folders", {}),
+                    "total": len(data.get("files", [])),
+                })
+            elif route == "/api/scan-files":
+                with lock:
+                    scan = ui_state["scan"]
+                    data = scan.get("data") or {}
+                    status = scan["status"]
+                self._json({
+                    "ok": status == "done",
+                    "status": status,
+                    "files": data.get("files", []),
+                    "truncated": bool(data.get("truncated")) if data else False,
+                })
+            elif route == "/api/media":
+                query = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                src = (query.get("src") or [""])[0]
+                target = resolve_media_file(src) if src else None
+                if target is None:
+                    self._json({"ok": False, "error": "file not in media library"}, code=403)
+                    return
+                if not target.is_file():
+                    self._json({"ok": False, "error": "file missing"}, code=404)
+                    return
+                ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+                try:
+                    payload = target.read_bytes()
+                except OSError:
+                    self._json({"ok": False, "error": "unreadable"}, code=404)
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", ctype)
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
             elif route == "/api/stats":
                 self._json([[row[0], row[1], int(row[2]) if row[2] is not None else 0] for row in system_stats()])
             elif route == "/api/weather":
@@ -685,7 +952,7 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
                     except OSError as exc:
                         self._json({"ok": False, "error": str(exc)})
                         return
-                record_history(history_path(path), entry["name"])
+                record_history(hp(), entry["name"])
                 self._json({"ok": True})
             elif route == "/api/favorite":
                 entry = find_by_name(ui_state["entries"], str(body.get("name", "")))
@@ -735,6 +1002,104 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
                     return
                 subprocess.Popen(command, shell=True)
                 self._json({"ok": True})
+            elif route == "/api/scan":
+                start_scan()
+                self._json({"ok": True, "status": "scanning"})
+            elif route == "/api/open-path":
+                target_path = str(body.get("path", ""))
+                target = resolve_media_file(target_path) or resolve_scan_folder(target_path)
+                if target is None:
+                    self._json({"ok": False, "error": "path not in media library"})
+                    return
+                try:
+                    open_with_system(target)
+                except OSError as exc:
+                    self._json({"ok": False, "error": str(exc)})
+                    return
+                self._json({"ok": True})
+            elif route == "/api/profile/create":
+                name = str(body.get("name", "")).strip()
+                pin = str(body.get("pin", "")).strip()
+                with lock:
+                    users = ui_state["profiles"]["users"]
+                    if not name or name.startswith("$"):
+                        self._json({"ok": False, "error": "invalid name"})
+                        return
+                    if name in users:
+                        self._json({"ok": False, "error": "profile exists"})
+                        return
+                    users[name] = {"pin": hash_pin(pin) if pin else None}
+                    ui_state["profiles"]["active"] = name
+                    ui_state["profile"] = name
+                    try:
+                        save_profiles(path, ui_state["profiles"])
+                    except OSError as exc:
+                        self._json({"ok": False, "error": str(exc)})
+                        return
+                self._json({"ok": True})
+            elif route == "/api/profile/switch":
+                name = str(body.get("name", "")).strip()
+                pin = str(body.get("pin", ""))
+                with lock:
+                    users = ui_state["profiles"]["users"]
+                    if name not in users:
+                        self._json({"ok": False, "error": "unknown profile"})
+                        return
+                    stored = users[name].get("pin")
+                    if not verify_pin(stored, pin):
+                        self._json({"ok": False, "error": "wrong pin"})
+                        return
+                    ui_state["profiles"]["active"] = name
+                    ui_state["profile"] = name
+                    try:
+                        save_profiles(path, ui_state["profiles"])
+                    except OSError as exc:
+                        self._json({"ok": False, "error": str(exc)})
+                        return
+                self._json({"ok": True})
+            elif route == "/api/profile/pin":
+                name = str(body.get("name", "")).strip()
+                old_pin = str(body.get("old_pin", ""))
+                with lock:
+                    users = ui_state["profiles"]["users"]
+                    if name not in users:
+                        self._json({"ok": False, "error": "unknown profile"})
+                        return
+                    if not verify_pin(users[name].get("pin"), old_pin):
+                        self._json({"ok": False, "error": "wrong pin"})
+                        return
+                    new_pin = str(body.get("new_pin", "")).strip()
+                    users[name]["pin"] = hash_pin(new_pin) if new_pin else None
+                    try:
+                        save_profiles(path, ui_state["profiles"])
+                    except OSError as exc:
+                        self._json({"ok": False, "error": str(exc)})
+                        return
+                self._json({"ok": True})
+            elif route == "/api/store/add":
+                item = next((s for s in STORE_CATALOG if s["id"] == body.get("id")), None)
+                if item is None:
+                    self._json({"ok": False, "error": "unknown store item"})
+                    return
+                if any(e["name"].lower() == item["name"].lower() for e in ui_state["entries"]):
+                    self._json({"ok": True, "added": False})
+                    return
+                with lock:
+                    ui_state["entries"].append(
+                        normalize({"name": item["name"], "command": item["url"], "icon": item["icon"], "color": item["color"], "tags": ["store"]}, len(ui_state["entries"]))
+                    )
+                    persist()
+                self._json({"ok": True, "added": True})
+            elif route == "/api/store/download":
+                item = next((s for s in STORE_CATALOG if s["id"] == body.get("id")), None)
+                if item is None:
+                    self._json({"ok": False, "error": "unknown store item"})
+                    return
+                try:
+                    webbrowser.open(item["download"] or item["url"])
+                except Exception:
+                    pass
+                self._json({"ok": True})
             elif route == "/api/shutdown":
                 ui_state["stop"].set()
                 self._json({"ok": True})
@@ -745,6 +1110,7 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
         server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), DashboardHandler)
     except OSError as exc:
         sys.exit(f"error: cannot start dashboard server: {exc}")
+    start_scan()
     url = f"http://127.0.0.1:{server.server_address[1]}/"
     print(f"Oke OS dashboard running at {url}  (Ctrl+C, or Power & Exit > Close launcher, to stop)")
     print("if your browser did not open automatically, copy the address above into a browser tab")

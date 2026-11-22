@@ -1,6 +1,6 @@
 # Oke OS (Python)
 
-Oke OS is a zero-dependency, "next-gen console OS" shell for Windows (also runs on macOS/Linux) built with Python's standard library only. Open a prebuilt EXE or run `launch.py` and it serves a frosted-glass TV dashboard on your own machine (`127.0.0.1` only) and opens it in your browser — with a boot splash, lock screen and power controls, it turns any PC into a console-style appliance.
+Oke OS is a zero-dependency, "next-gen console OS" shell for Windows (also runs on macOS/Linux) built with Python's standard library only. Open a prebuilt EXE or run `launch.py` and it serves a frosted-glass TV dashboard on your own machine (`127.0.0.1` only) and opens it in your browser — with a boot splash, a multi-user PIN lock screen, an app store and a photo/video library, it turns any PC into a console-style appliance.
 
 ![type: no third-party dependencies](https://img.shields.io/badge/stdlib%20only-no%20pip%20installs-brightgreen)
 
@@ -13,10 +13,13 @@ First run creates a starter config with a few example tiles (Netflix, Spotify, Y
 
 ## The dashboard (Next-Gen TV & Console UI)
 
-- **OS experience** — animated **boot splash** ("Mounting launchers.json… → Welcome to Oke OS") and a full-screen **lock screen** (giant clock, date, weather; click or any key to unlock; header 🔒 button or Power page > Lock).
+- **OS experience** — animated **boot splash** ("Mounting launchers.json… → Welcome to Oke OS") and a full-screen **lock screen** with **user profiles + PIN** (giant clock, date, weather, profile chips and a PIN keypad; header 🔒 button or Power page > Lock).
 - **Frosted glass surfaces + ambient glow orbs** that shift colour per category.
 - **Top status bar** — brand, live CPU / RAM / Disk telemetry pills, zero-config weather chip, sound toggle, search (press `/`), themes drawer, and live clock + date.
-- **Left floating nav rail** with a spring-animated active pill: Home, All apps, Favourites, System monitor, all 20 categories, and Power & Exit.
+- **Left floating nav rail** with a spring-animated active pill: Home, All apps, Favourites, System monitor, Photos & Videos, Oke Store, all 20 categories, and Power & Exit.
+- **User profiles with PIN** — sign in as different users on the lock screen. PINs are stored salted+hashed (SHA-256, never in plain text); profiles without a PIN unlock instantly. Each profile keeps its own recently-played history.
+- **Photos & Videos (media library)** — Oke OS scans your Pictures, Videos, Downloads, Desktop, Music and OneDrive folders for pictures and videos and organises them by folder. Browse folder cards, then view photos in a lightbox, play MP4/WebM/MOV files in an in-page video player, or open exotic formats in your system player. Rescan button included (newest 4000 files, depth 5).
+- **Oke Store** — a built-in package installer with 16 popular apps & services (Netflix, Spotify, Steam, Discord, VS Code …). "＋ Add to Oke OS" pins the web app to your dashboard instantly; "⬇ Get installer" opens the official download page.
 - **Hero banner** that crossfades to the currently focused tile, with a glowing **Launch Now** button.
 - **Cards grid** with console focus rings, 3D perspective tilt (toggleable), click ripples and staggered entrance animations.
 - **Launch splash** — cinematic progress modal while the real app/command starts.
@@ -80,6 +83,16 @@ Fields per entry:
 
 Set `"theme"` in `launchers.json` or use the in-app Themes drawer: `"obsidian"` (default), `"aurora"`, `"arctic"`, `"sunset"`. Legacy values `midnight`/`oled` map to obsidian and `sapphire` to aurora.
 
+### Profiles
+
+Profiles live in the same file under a `profiles` key and are created/edited from the lock screen UI — no editing needed:
+
+```json
+"profiles": { "users": { "Owner": {"pin": null}, "Kid": {"pin": "salt$hash"} }, "active": "Owner" }
+```
+
+`pin` is always stored as `<salt>$<sha256(salt+pin)>` or `null` (no PIN). History files follow the same pattern: the first profile uses `launcher_history.json`, others get `launcher_history_<name>.json`.
+
 ## CLI
 
 ```
@@ -105,6 +118,6 @@ Or let GitHub Actions do it: push to this branch and download the `Okelauncher-w
 
 ## Current dashboard scope vs. ideas inbox
 
-Included: 20 categories, glass nav rail with spring pill, recently played, favourites, quick launch, live search, weather chip, live CPU/RAM/disk telemetry + system monitor page, 4 themes with persistence, 3D tilt + ripples + ambient orbs, launch splash, add/favourite/remove management, sleep/restart/shutdown, terminal fallback menu.
+Included: 20 categories, glass nav rail with spring pill, recently played (per profile), favourites, quick launch, live search, weather chip, live CPU/RAM/disk telemetry + system monitor page, 4 themes with persistence, 3D tilt + ripples + ambient orbs, launch splash, boot splash, user profiles with PIN lock screen, Oke Store package installer, automatic PC media scan with photo/video viewer, add/favourite/remove management, sleep/restart/shutdown, terminal fallback menu.
 
-Not implemented yet (possible future work): resume-watching positions, screen mirroring/casting, phone remote control, voice commands, automatic media-library scanning, multiple user profiles, screensaver mode, custom background images, GPU statistics.
+Not implemented yet (possible future work): custom media-scan folders, resume-watching positions, screen mirroring/casting, phone remote control, voice commands, screensaver mode, custom background images, GPU statistics.
