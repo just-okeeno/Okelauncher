@@ -97,6 +97,15 @@ def normalize(entry: dict, index: int) -> dict:
     }
 
 
+def force_utf8_output() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        if stream and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, ValueError):
+                pass
+
+
 def run_entry(entry: dict) -> int:
     command, etype, cwd = entry["command"], entry["type"], entry["cwd"]
     if not command:
@@ -287,6 +296,7 @@ def cmd_remove(entries: list[dict], path: Path, name: str) -> int:
 
 
 def main() -> int:
+    force_utf8_output()
     parser = argparse.ArgumentParser(description="Universal launcher: apps, commands, scripts, URLs")
     parser.add_argument("name", nargs="?", help="run the first entry matching this name")
     parser.add_argument("--config", type=Path, default=None, help="config file (default: launchers.json beside script, else ~/.config/universal-launcher/launchers.json)")
