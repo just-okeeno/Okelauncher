@@ -33,12 +33,12 @@ jobs:
         run: ./dist/Okelauncher.exe --list
         shell: pwsh
 
-      - name: Smoke test (GUI window stays alive)
+      - name: Smoke test (GUI opens and stays alive)
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath "./dist/Okelauncher.exe" -PassThru
-          Start-Sleep -Seconds 5
-          if ($p.HasExited) { Write-Error "GUI EXE exited early with code $($p.ExitCode)" } else { Stop-Process -Id $p.Id }
+          $p = Start-Process -FilePath "./dist/Okelauncher-cli.exe" -ArgumentList "--gui" -WindowStyle Hidden -PassThru
+          Start-Sleep -Seconds 6
+          if ($p.HasExited) { Write-Error "GUI crashed on launch (console EXE --gui exited with code $($p.ExitCode))" } else { Stop-Process -Id $p.Id }
 
       - uses: actions/upload-artifact@v4
         with:

@@ -339,14 +339,14 @@ def launch_gui(entries: list[dict], path: Path, weather_config: dict | None = No
     BG, FG, DIM, MUTED = "#0f1115", "#e8eaed", "#9aa0a6", "#5f6368"
     SURFACE, SURFACE_HI, ACCENT = "#1b1e26", "#262b36", "#89b4fa"
 
-    family = tkfont.nametofont("TkDefaultFont").actual("family")
-    COLS, TILE_W, TILE_H = 6, 150, 118
-
     root = tk.Tk()
     root.title("Oke Launcher")
     root.configure(bg=BG)
     root.geometry("1180x720")
     root.minsize(940, 560)
+
+    family = tkfont.nametofont("TkDefaultFont").actual("family")
+    COLS, TILE_W, TILE_H = 6, 150, 118
 
     state = {"tiles": [], "index": 0, "matches": list(entries)}
 
