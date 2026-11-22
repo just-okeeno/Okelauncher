@@ -1,13 +1,15 @@
 {
-  "$schema": "universal-launcher/v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "theme": "midnight",
   "entries": [
-    { "name": "Doctor", "type": "shell", "command": "echo launcher works", "icon": "D", "color": "#2d8a54", "tags": ["diagnostics"], "favorite": true },
-    { "name": "Netflix", "type": "url", "command": "https://www.netflix.com", "icon": "N", "color": "#e50914" },
-    { "name": "YouTube", "type": "url", "command": "https://www.youtube.com", "icon": "▶", "color": "#ff0000" },
-    { "name": "Prime Video", "type": "url", "command": "https://www.primevideo.com", "icon": "P", "color": "#00a8e1" },
-    { "name": "Spotify", "type": "url", "command": "https://open.spotify.com", "icon": "♫", "color": "#1db954" },
-    { "name": "Twitch", "type": "url", "command": "https://www.twitch.tv", "icon": "T", "color": "#9146ff" },
-    { "name": "GitHub", "type": "url", "command": "https://github.com", "icon": "G", "color": "#24292e" },
-    { "name": "Local file server", "type": "shell", "command": "python -m http.server 8642 --bind 127.0.0.1", "icon": "▤", "color": "#5e81ac" }
+    { "name": "Doctor", "type": "shell", "command": "echo launcher works", "icon": "D", "color": "#2d8a54", "tags": ["tools", "diagnostics"], "favorite": true },
+    { "name": "Netflix", "type": "url", "command": "https://www.netflix.com", "icon": "N", "color": "#e50914", "tags": ["movies", "tv", "streaming"] },
+    { "name": "YouTube", "type": "url", "command": "https://www.youtube.com", "icon": "▶", "color": "#ff0000", "tags": ["videos", "streaming"] },
+    { "name": "Prime Video", "type": "url", "command": "https://www.primevideo.com", "icon": "P", "color": "#00a8e1", "tags": ["movies", "tv", "streaming"] },
+    { "name": "Spotify", "type": "url", "command": "https://open.spotify.com", "icon": "♫", "color": "#1db954", "tags": ["music", "audio"] },
+    { "name": "Twitch", "type": "url", "command": "https://www.twitch.tv", "icon": "T", "color": "#9146ff", "tags": ["gaming", "streaming"] },
+    { "name": "GitHub", "type": "url", "command": "https://github.com", "icon": "G", "color": "#24292e", "tags": ["browser", "internet", "tools"] },
+    { "name": "TuneIn radio", "type": "url", "command": "https://tunein.com", "icon": "📻", "color": "#0b60a8", "tags": ["radio", "podcasts", "music"] },
+    { "name": "Local file server", "type": "shell", "command": "python -m http.server 8642 --bind 127.0.0.1", "icon": "▤", "color": "#5e81ac", "tags": ["files", "network"] }
   ]
 }
