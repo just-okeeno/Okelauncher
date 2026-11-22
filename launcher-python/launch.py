@@ -84,15 +84,37 @@ def load_config(path: Path) -> list[dict]:
     return entries
 
 
-def load_weather_config(path: Path) -> dict | None:
+def resolve_weather_config(path: Path) -> dict | None:
     try:
         data = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    weather = data.get("weather")
+    if weather is False or weather == "off":
         return None
-    weather = data.get("weather") if isinstance(data, dict) else None
-    if isinstance(weather, dict) and "lat" in weather and "lon" in weather:
+    if isinstance(weather, dict):
         return weather
-    return None
+    return {}
+
+
+def geolocate_by_ip() -> dict:
+    import urllib.request
+
+    for url in ("https://ipwho.is/", "https://ipapi.co/json/"):
+        try:
+            with urllib.request.urlopen(url, timeout=6) as resp:
+                data = json.load(resp)
+            lat = data.get("latitude") or data.get("lat")
+            lon = data.get("longitude") or data.get("lon")
+            if lat is None or lon is None:
+                continue
+            unit = "fahrenheit" if data.get("country_code") == "US" else "celsius"
+            return {"lat": float(lat), "lon": float(lon), "unit": unit}
+        except Exception:
+            continue
+    return {}
 
 
 def save_config(path: Path, entries: list[dict]) -> None:
@@ -309,21 +331,28 @@ def weather_summary(temp: float, code: int, unit: str = "fahrenheit") -> str:
 def fetch_weather_async(root, label, config: dict) -> None:
     import urllib.request
 
-    lat, lon = config["lat"], config["lon"]
-    unit = str(config.get("unit", "fahrenheit"))
-    params = f"latitude={lat}&longitude={lon}&current=temperature_2m,weather_code"
-    params += f"&temperature_unit={'fahrenheit' if unit.lower().startswith('f') else 'celsius'}"
-    url = f"https://api.open-meteo.com/v1/forecast?{params}"
-
     def work():
         try:
+            location = dict(config)
+            if "lat" not in location or "lon" not in location:
+                detected = geolocate_by_ip()
+                if not detected:
+                    return
+                for key, value in detected.items():
+                    location.setdefault(key, value)
+                if "lat" not in location or "lon" not in location:
+                    return
+            unit = str(location.get("unit", "fahrenheit"))
+            params = f"latitude={location['lat']}&longitude={location['lon']}&current=temperature_2m,weather_code"
+            params += f"&temperature_unit={'fahrenheit' if unit.lower().startswith('f') else 'celsius'}"
+            url = f"https://api.open-meteo.com/v1/forecast?{params}"
             with urllib.request.urlopen(url, timeout=6) as resp:
                 data = json.load(resp)
             current = data.get("current", {})
             text = weather_summary(current["temperature_2m"], current.get("weather_code", 0), unit)
             root.after(0, lambda: label.config(text=text))
         except Exception:
-            pass
+            return
 
     threading.Thread(target=work, daemon=True).start()
 
@@ -378,6 +407,61 @@ def launch_gui(entries: list[dict], path: Path, weather_config: dict | None = No
     inner_window = canvas.create_window((0, 0), window=inner, anchor="nw")
 
     status = tk.Label(root, text="", bg=BG, fg=DIM, anchor="w", font=(family, 11))
+    action_bar = tk.Frame(root, bg=BG)
+
+    def small_button(text, command):
+        return tk.Button(
+            action_bar,
+            text=text,
+            command=command,
+            bg=SURFACE,
+            fg=FG,
+            activebackground=ACCENT,
+            activeforeground=BG,
+            relief="flat",
+            padx=12,
+            pady=3,
+            cursor="hand2",
+            font=(family, 10),
+        )
+
+    def add_app_dialog():
+        from tkinter import simpledialog
+
+        name = simpledialog.askstring("Add app", "App name:", parent=root)
+        if not name or not name.strip():
+            return
+        command = simpledialog.askstring("Add app", f"Command or URL for {name.strip()}:", parent=root)
+        if not command or not command.strip():
+            status.config(text="add cancelled: a command or URL is required")
+            return
+        icon = (simpledialog.askstring("Add app", "Tile glyph — letter, symbol, or emoji (Enter = first letter):", parent=root) or "").strip()
+        color = (simpledialog.askstring("Add app", "Tile color #rrggbb (Enter = default):", parent=root) or "").strip()
+        entry = normalize({"name": name.strip(), "command": command.strip(), "icon": icon, "color": color}, len(entries))
+        entries.append(entry)
+        save_config(path, entries)
+        state["index"] = len(entries) - 1
+        search_var.set("")
+        refresh()
+        status.config(text=f"added: {entry['name']}")
+
+    def toggle_favorite():
+        if state["matches"]:
+            entry = state["matches"][min(state["index"], len(state["matches"]) - 1)]
+            entry["favorite"] = not entry["favorite"]
+            save_config(path, entries)
+            refresh()
+            status.config(text=f"{'★ ' if entry['favorite'] else ''}{entry['name']}{' favorited' if entry['favorite'] else ' unfavorited'}")
+
+    def remove_selected():
+        if not state["matches"]:
+            return
+        entry = state["matches"][min(state["index"], len(state["matches"]) - 1)]
+        entries.remove(entry)
+        save_config(path, entries)
+        search_var.set("")
+        refresh()
+        status.config(text=f"removed: {entry['name']}")
 
     header.pack(fill="x", padx=28, pady=(22, 4))
     clock_sub.pack(side="left")
@@ -388,7 +472,12 @@ def launch_gui(entries: list[dict], path: Path, weather_config: dict | None = No
     search_hint.pack(anchor="w", pady=(6, 0))
     scrollbar.pack(side="right", fill="y", padx=(0, 2))
     canvas.pack(fill="both", expand=True, padx=28)
-    status.pack(fill="x", padx=28, pady=(8, 14))
+    action_bar.pack(fill="x", padx=28, pady=(8, 0))
+    small_button("＋ Add app", add_app_dialog).pack(side="left", padx=(0, 8))
+    small_button("★ Favorite", toggle_favorite).pack(side="left", padx=(0, 8))
+    small_button("✕ Remove", remove_selected).pack(side="left", padx=(0, 8))
+    small_button("Close", root.destroy).pack(side="right")
+    status.pack(fill="x", padx=28, pady=(6, 14))
 
     def tick():
         now = datetime.datetime.now()
@@ -647,7 +736,7 @@ def main() -> int:
             sys.exit(f"error: no entry matches {args.name!r}")
         return run_entry(entry)
     if args.gui or (getattr(sys, "frozen", False) and windowed):
-        return launch_gui(entries, path, load_weather_config(path))
+        return launch_gui(entries, path, resolve_weather_config(path))
     return interactive(entries, path)
 
 
