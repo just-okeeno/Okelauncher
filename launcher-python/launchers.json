@@ -1,0 +1,23 @@
+{
+  "$schema": "universal-launcher/v1",
+  "entries": [
+    {
+      "name": "Doctor",
+      "type": "shell",
+      "command": "echo 'environment looks good' && python3 --version",
+      "tags": ["diagnostics"],
+      "favorite": true
+    },
+    {
+      "name": "GitHub",
+      "type": "url",
+      "command": "https://github.com"
+    },
+    {
+      "name": "Local file server",
+      "type": "shell",
+      "command": "python3 -m http.server 8642 --bind 127.0.0.1",
+      "tags": ["files", "server"]
+    }
+  ]
+}
