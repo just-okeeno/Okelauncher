@@ -251,6 +251,8 @@
   }
   /* --- store page --- */
   .store-card { display: flex; flex-direction: column; gap: 14px; padding: 22px; }
+  .store-icon { position: relative; overflow: hidden; flex: none; }
+  .store-icon img.store-logo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .store-actions { display: flex; gap: 8px; margin-top: auto; }
   .store-btn {
     flex: 1; border: 1px solid var(--glass-border); background: var(--glass-surface); color: inherit;
@@ -1515,7 +1517,7 @@
             card.style.cursor = "default";
             card.innerHTML = `
               <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
-                <div style="width:48px; height:48px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow: 0 10px 22px -6px ${item.color}88; background: linear-gradient(135deg, ${item.color}, rgba(255,255,255,0.18));">${item.icon}</div>
+                <div class="store-icon" style="width:48px; height:48px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow: 0 10px 22px -6px ${item.color}88; background: linear-gradient(135deg, ${item.color}, rgba(255,255,255,0.18));">${item.icon}${item.logo ? `<img class=\"store-logo\" src=\"${item.logo}\" alt=\"\" onerror=\"this.remove()\">` : ""}</div>
                 <span style="font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,0.10); border:1px solid var(--glass-border);">${(item.tags || []).join(" • ") || "APP"}</span>
               </div>
               <div>

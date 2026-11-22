@@ -76,6 +76,31 @@ SCAN_SKIP_DIRS = {
 SCAN_MAX_FILES = 4000
 SCAN_MAX_DEPTH = 5
 
+LOGO_DOMAINS = {
+    "netflix": "netflix.com",
+    "youtube": "youtube.com",
+    "spotify": "spotify.com",
+    "twitch": "twitch.tv",
+    "discord": "discord.com",
+    "steam": "steampowered.com",
+    "epic": "epicgames.com",
+    "vlc": "videolan.org",
+    "plex": "plex.tv",
+    "vscode": "code.visualstudio.com",
+    "chrome": "google.com",
+    "firefox": "mozilla.org",
+    "obs": "obsproject.com",
+    "qbittorrent": "qbittorrent.org",
+    "whatsapp": "whatsapp.com",
+    "onedrive": "onedrive.live.com",
+}
+
+
+def with_logo(item: dict) -> dict:
+    domain = LOGO_DOMAINS.get(item["id"])
+    logo = f"https://www.google.com/s2/favicons?domain={domain}&sz=64" if domain else ""
+    return {**item, "logo": logo}
+
 STORE_CATALOG = [
     {"id": "netflix", "name": "Netflix", "desc": "Movies & TV streaming", "icon": "N", "color": "#e50914", "tags": ["movies", "tv", "streaming"], "url": "https://www.netflix.com", "download": "https://apps.microsoft.com/detail/9wzdncrfj3tj"},
     {"id": "youtube", "name": "YouTube", "desc": "Video sharing & live streams", "icon": "\u25b6", "color": "#ff0000", "tags": ["videos", "streaming"], "url": "https://www.youtube.com", "download": "https://apps.microsoft.com/detail/9wzdncrfj3tj"},
@@ -92,7 +117,7 @@ STORE_CATALOG = [
     {"id": "obs", "name": "OBS Studio", "desc": "Screen recording & streaming", "icon": "\U0001f3a5", "color": "#302e31", "tags": ["tools", "utilities"], "url": "https://obsproject.com", "download": "https://obsproject.com/download"},
     {"id": "qbittorrent", "name": "qBittorrent", "desc": "Downloads & transfers", "icon": "\u2b07", "color": "#2b5cb8", "tags": ["downloads", "tools"], "url": "https://www.qbittorrent.org", "download": "https://www.qbittorrent.org/download.php"},
     {"id": "whatsapp", "name": "WhatsApp", "desc": "Messaging & calls", "icon": "\U0001f4ac", "color": "#25d366", "tags": ["apps", "tools"], "url": "https://web.whatsapp.com", "download": "https://www.whatsapp.com/download"},
-    {"id": "openrarrow", "name": "OneDrive", "desc": "Cloud files & sync", "icon": "\u2601", "color": "#0364b8", "tags": ["cloud", "network", "files"], "url": "https://onedrive.live.com", "download": "https://www.microsoft.com/microsoft-365/onedrive/download"},
+    {"id": "onedrive", "name": "OneDrive", "desc": "Cloud files & sync", "icon": "\u2601", "color": "#0364b8", "tags": ["cloud", "network", "files"], "url": "https://onedrive.live.com", "download": "https://www.microsoft.com/microsoft-365/onedrive/download"},
 ]
 
 
@@ -785,7 +810,7 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
                 "categories": CATEGORIES,
                 "entries": ui_state["entries"],
                 "history": [item.get("name", "") for item in load_history(hp())],
-                "store": STORE_CATALOG,
+                "store": [with_logo(item) for item in STORE_CATALOG],
                 "profiles": {
                     "users": [{"name": name, "has_pin": bool(info.get("pin"))} for name, info in profiles["users"].items()],
                     "active": ui_state["profile"],
