@@ -26,7 +26,7 @@ $Root     = $PSScriptRoot
 $BuildDir = Join-Path $Root 'build'
 $DistDir  = Join-Path $Root 'dist'
 
-if (-not $Clean -and -not $Build -and -not $Run -and -not $Package -and -not $GenerateIcon) {
+if (-not $Clean -and -not $Package -and -not $GenerateIcon) {
     $Build = $true
 }
 
