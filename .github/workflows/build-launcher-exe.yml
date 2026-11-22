@@ -21,13 +21,19 @@ jobs:
       - name: Install PyInstaller
         run: pip install pyinstaller
 
-      - name: Build Okelauncher.exe
-        run: pyinstaller --onefile --name Okelauncher launcher-python/launch.py
+      - name: Build Okelauncher.exe (GUI) and Okelauncher-cli.exe (terminal)
+        run: |
+          pyinstaller --onefile --windowed --name Okelauncher launcher-python/launch.py
+          pyinstaller --onefile --console --name Okelauncher-cli launcher-python/launch.py
 
-      - name: Smoke test
+      - name: Smoke test (console EXE)
+        run: ./dist/Okelauncher-cli.exe --list
+
+      - name: Smoke test (GUI EXE exit code)
         run: ./dist/Okelauncher.exe --list
+        shell: pwsh
 
       - uses: actions/upload-artifact@v4
         with:
           name: Okelauncher-windows-exe
-          path: dist/Okelauncher.exe
+          path: dist/Okelauncher*.exe

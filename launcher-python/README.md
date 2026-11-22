@@ -2,7 +2,14 @@
 
 One searchable menu for everything you start: apps, shell commands, scripts, and URLs. Single file, no dependencies beyond Python 3.9+ and `launchers.json` next to `launch.py`.
 
-A standalone Windows `Okelauncher.exe` (no Python needed) is built automatically by the `Build Windows EXE` GitHub Actions workflow: open the [Actions tab](../../actions), pick the latest run, and download the `Okelauncher-windows-exe` artifact. Keep it (plus its `launchers.json`, created on first run) in a folder on your `PATH`.
+A standalone Windows EXE (no Python needed) is built automatically by the `Build Windows EXE` GitHub Actions workflow: open the [Actions tab](../../actions), pick the latest run, and download the `Okelauncher-windows-exe` artifact. It contains two files:
+
+- `Okelauncher.exe` — GUI: double-click (or pin to taskbar) and launch entries with search, double-click, or Enter. Configuration lives in `launchers.json` next to the EXE; a starter file is created on first run.
+- `Okelauncher-cli.exe` — terminal version for scripting and keyboard-only use.
+
+## GUI
+
+`python3 launch.py --gui` opens the same dark, searchable window (Tkinter, stdlib): type to filter, `↑`/`↓` or mouse to select, `Enter`/double-click or **Run** to launch, **★ Favorite** toggles the pin, **Remove** deletes an entry (saved to `launchers.json`), `Esc` or **Close** exits. The window stays open after launching, so you can fire off several apps in a row; a status line shows what was launched.
 
 ## Run
 

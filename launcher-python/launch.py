@@ -5,6 +5,7 @@ Zero third-party dependencies. Works wherever Python 3.9+ runs.
 
 Usage:
     launch.py                 interactive picker (search, arrows, Enter to run)
+    launch.py --gui           graphical window (default when run as a windowed EXE)
     launch.py <name>          run the first entry matching <name> and exit
     launch.py --list          list all entries
     launch.py --add           add a new entry
@@ -98,8 +99,12 @@ def normalize(entry: dict, index: int) -> dict:
 
 
 def force_utf8_output() -> None:
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
     for stream in (sys.stdout, sys.stderr):
-        if stream and hasattr(stream, "reconfigure"):
+        if hasattr(stream, "reconfigure"):
             try:
                 stream.reconfigure(encoding="utf-8", errors="replace")
             except (OSError, ValueError):
@@ -243,6 +248,170 @@ def fallback_picker(entries: list[dict]) -> int:
     return 0
 
 
+def launch_gui(entries: list[dict], path: Path) -> int:
+    try:
+        import tkinter as tk
+    except ImportError:
+        print("tkinter is not available in this Python build; using the text menu instead")
+        return interactive(entries, path)
+
+    BG, FG, DIM = "#1e1e2e", "#cdd6f4", "#6c7086"
+    SURFACE, ACCENT = "#313244", "#89b4fa"
+
+    root = tk.Tk()
+    root.title("Universal launcher")
+    root.configure(bg=BG)
+    root.geometry("760x440")
+    root.minsize(540, 320)
+
+    state = {"matches": list(entries)}
+
+    status_var = tk.StringVar(value="Type to search · Enter or double-click to run · Esc to close")
+
+    search_frame = tk.Frame(root, bg=BG)
+    search_var = tk.StringVar()
+    search = tk.Entry(
+        search_frame,
+        textvariable=search_var,
+        bg=SURFACE,
+        fg=FG,
+        insertbackground=FG,
+        relief="flat",
+        font=("TkDefaultFont", 13),
+    )
+    hint = tk.Label(search_frame, text="Search: name, command, or tag", bg=BG, fg=DIM, font=("TkDefaultFont", 10))
+
+    list_frame = tk.Frame(root, bg=BG)
+    listbox = tk.Listbox(
+        list_frame,
+        bg=BG,
+        fg=FG,
+        selectbackground=SURFACE,
+        selectforeground=FG,
+        activestyle="none",
+        relief="flat",
+        highlightthickness=0,
+        font=("TkDefaultFont", 12),
+    )
+    scrollbar = tk.Scrollbar(list_frame, command=listbox.yview, bg=BG, troughcolor=BG)
+    listbox.configure(yscrollcommand=scrollbar.set)
+
+    status = tk.Label(root, textvariable=status_var, bg=BG, fg=DIM, anchor="w", font=("TkDefaultFont", 10))
+
+    def refresh(*_):
+        query = search_var.get().strip()
+        state["matches"] = visible_entries(entries, query)
+        listbox.delete(0, tk.END)
+        for entry in state["matches"]:
+            star = "★" if entry["favorite"] else " "
+            kind = "url" if entry["type"] == "url" else "sh "
+            listbox.insert(tk.END, f" {star} {entry['name']}   [{kind}] {entry['command']}")
+        if state["matches"]:
+            listbox.selection_set(0)
+
+    def selected_entry():
+        selection = listbox.curselection()
+        if not selection or selection[0] >= len(state["matches"]):
+            return None
+        return state["matches"][selection[0]]
+
+    def move(delta):
+        if not state["matches"]:
+            return "break"
+        selection = listbox.curselection()
+        index = (selection[0] if selection else 0) + delta
+        index = max(0, min(index, len(state["matches"]) - 1))
+        listbox.selection_clear(0, tk.END)
+        listbox.selection_set(index)
+        listbox.see(index)
+        return "break"
+
+    def launch(entry: dict):
+        if entry["type"] == "url":
+            webbrowser.open(entry["command"])
+            status_var.set(f"opened in browser: {entry['name']}")
+            return
+        cwd = entry.get("cwd")
+        try:
+            subprocess.Popen(
+                entry["command"],
+                shell=True,
+                cwd=str(Path(cwd).expanduser()) if cwd else None,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            status_var.set(f"launched: {entry['name']}")
+        except OSError as exc:
+            status_var.set(f"error: {exc}")
+
+    def run_selected(_event=None):
+        entry = selected_entry()
+        if entry:
+            launch(entry)
+        return "break"
+
+    def toggle_favorite():
+        entry = selected_entry()
+        if entry:
+            entry["favorite"] = not entry["favorite"]
+            save_config(path, entries)
+            refresh()
+
+    def remove_selected():
+        entry = selected_entry()
+        if entry:
+            entries.remove(entry)
+            save_config(path, entries)
+            refresh()
+
+    def button(parent, text, command):
+        return tk.Button(
+            parent,
+            text=text,
+            command=command,
+            bg=SURFACE,
+            fg=FG,
+            activebackground=ACCENT,
+            activeforeground=BG,
+            relief="flat",
+            padx=14,
+            pady=4,
+            cursor="hand2",
+        )
+
+    buttons = tk.Frame(root, bg=BG)
+    run_btn = button(buttons, "Run", run_selected)
+    fav_btn = button(buttons, "★ Favorite", toggle_favorite)
+    del_btn = button(buttons, "Remove", remove_selected)
+    close_btn = button(buttons, "Close", root.destroy)
+
+    search_frame.pack(fill="x", padx=16, pady=(16, 4))
+    search.pack(fill="x", ipady=8)
+    hint.pack(anchor="w", pady=(4, 0))
+    list_frame.pack(fill="both", expand=True, padx=16, pady=8)
+    listbox.pack(side="left", fill="both", expand=True)
+    scrollbar.pack(side="right", fill="y")
+    buttons.pack(fill="x", padx=16, pady=(0, 4))
+    for btn in (run_btn, fav_btn, del_btn, close_btn):
+        btn.pack(side="left", padx=(0, 8), pady=(0, 4))
+    status.pack(fill="x", padx=16, pady=(0, 12))
+
+    search.bind("<Return>", run_selected)
+    search.bind("<Down>", lambda _e: move(1))
+    search.bind("<Up>", lambda _e: move(-1))
+    search_var.trace_add("write", refresh)
+    listbox.bind("<Return>", run_selected)
+    listbox.bind("<Double-Button-1>", run_selected)
+    listbox.bind("<Down>", lambda _e: move(1))
+    listbox.bind("<Up>", lambda _e: move(-1))
+    root.bind("<Escape>", lambda _e: root.destroy())
+    search.focus_set()
+    refresh()
+    root.mainloop()
+    return 0
+
+
 def find_by_name(entries: list[dict], name: str) -> dict | None:
     lowered = name.lower()
     for entry in entries:
@@ -296,12 +465,14 @@ def cmd_remove(entries: list[dict], path: Path, name: str) -> int:
 
 
 def main() -> int:
+    windowed = sys.stdout is None
     force_utf8_output()
     parser = argparse.ArgumentParser(description="Universal launcher: apps, commands, scripts, URLs")
     parser.add_argument("name", nargs="?", help="run the first entry matching this name")
     parser.add_argument("--config", type=Path, default=None, help="config file (default: launchers.json beside script, else ~/.config/universal-launcher/launchers.json)")
     parser.add_argument("--list", action="store_true", help="list entries")
     parser.add_argument("--add", action="store_true", help="add an entry interactively")
+    parser.add_argument("--gui", action="store_true", help="open the graphical window instead of the text menu")
     parser.add_argument("--remove", metavar="NAME", help="remove an entry")
     args = parser.parse_args()
 
@@ -324,6 +495,8 @@ def main() -> int:
         if not entry:
             sys.exit(f"error: no entry matches {args.name!r}")
         return run_entry(entry)
+    if args.gui or (getattr(sys, "frozen", False) and windowed):
+        return launch_gui(entries, path)
     return interactive(entries, path)
 
 
