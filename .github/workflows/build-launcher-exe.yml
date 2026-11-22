@@ -1,0 +1,33 @@
+name: Build Windows EXE
+
+on:
+  push:
+    branches: ["vibe/universal-launcher-fa0dfa"]
+    paths:
+      - "launcher-python/**"
+      - ".github/workflows/build-launcher-exe.yml"
+  workflow_dispatch:
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller
+
+      - name: Build Okelauncher.exe
+        run: pyinstaller --onefile --name Okelauncher launcher-python/launch.py
+
+      - name: Smoke test
+        run: ./dist/Okelauncher.exe --list
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Okelauncher-windows-exe
+          path: dist/Okelauncher.exe

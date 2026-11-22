@@ -33,14 +33,32 @@ except ImportError:
 RESET, DIM, BOLD, CYAN = "\033[0m", "\033[2m", "\033[1m", "\033[36m"
 
 
+def script_base() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
 def default_config_path() -> Path:
     env = os.environ.get("UL_CONFIG")
     if env:
         return Path(env).expanduser()
-    local = Path(__file__).resolve().parent / "launchers.json"
+    local = script_base() / "launchers.json"
     if local.is_file():
         return local
     return Path.home() / ".config" / "universal-launcher" / "launchers.json"
+
+
+def seed_config(path: Path) -> None:
+    starter = {
+        "entries": [
+            {"name": "Doctor", "type": "shell", "command": "echo launcher works", "tags": ["diagnostics"], "favorite": True},
+            {"name": "GitHub", "type": "url", "command": "https://github.com"},
+        ]
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(starter, indent=2) + "\n", encoding="utf-8")
+    print(f"created starter config at {path}")
 
 
 def load_config(path: Path) -> list[dict]:
@@ -278,6 +296,8 @@ def main() -> int:
     args = parser.parse_args()
 
     path = args.config or default_config_path()
+    if not path.is_file():
+        seed_config(path)
     try:
         entries = [normalize(e, i) for i, e in enumerate(load_config(path))]
     except ValueError as exc:
