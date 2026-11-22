@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="obsidian">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Okelauncher — Next-Gen TV & Console UI</title>
+<style>
+  :root {
+    --bg-base: #07090e;
+    --orb-1: rgba(56, 189, 248, 0.28);
+    --orb-2: rgba(129, 140, 248, 0.24);
+    --orb-3: rgba(16, 185, 129, 0.16);
+    --glass-surface: rgba(17, 22, 34, 0.56);
+    --glass-surface-hover: rgba(28, 36, 56, 0.72);
+    --glass-elevated: rgba(22, 28, 44, 0.88);
+    --glass-border: rgba(255, 255, 255, 0.10);
+    --glass-border-focus: rgba(255, 255, 255, 0.45);
+    --accent-primary: #38bdf8;
+    --accent-secondary: #818cf8;
+    --accent-glow: rgba(56, 189, 248, 0.45);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --ease-spring: cubic-bezier(0.22, 1.25, 0.36, 1);
+    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  [data-theme="aurora"] {
+    --bg-base: #050b0a; --orb-1: rgba(16, 185, 129, 0.30); --orb-2: rgba(168, 85, 247, 0.26); --orb-3: rgba(6, 182, 212, 0.20);
+    --glass-surface: rgba(12, 24, 24, 0.56); --glass-surface-hover: rgba(20, 40, 38, 0.72); --glass-elevated: rgba(14, 30, 29, 0.88);
+    --glass-border: rgba(167, 243, 208, 0.14); --glass-border-focus: rgba(52, 211, 153, 0.65);
+    --accent-primary: #10b981; --accent-secondary: #a855f7; --accent-glow: rgba(16, 185, 129, 0.45);
+    --text-primary: #f0fdf4; --text-secondary: #99f6e4; --text-muted: #5eead4;
+  }
+  [data-theme="arctic"] {
+    --bg-base: #e2e8f0; --orb-1: rgba(59, 130, 246, 0.32); --orb-2: rgba(14, 165, 233, 0.28); --orb-3: rgba(244, 114, 182, 0.20);
+    --glass-surface: rgba(255, 255, 255, 0.58); --glass-surface-hover: rgba(255, 255, 255, 0.82); --glass-elevated: rgba(255, 255, 255, 0.9);
+    --glass-border: rgba(15, 23, 42, 0.10); --glass-border-focus: rgba(37, 99, 235, 0.65);
+    --accent-primary: #2563eb; --accent-secondary: #0284c7; --accent-glow: rgba(37, 99, 235, 0.35);
+    --text-primary: #0f172a; --text-secondary: #334155; --text-muted: #64748b;
+  }
+  [data-theme="sunset"] {
+    --bg-base: #12080a; --orb-1: rgba(249, 115, 22, 0.30); --orb-2: rgba(236, 72, 153, 0.25); --orb-3: rgba(234, 179, 8, 0.18);
+    --glass-surface: rgba(32, 16, 20, 0.58); --glass-surface-hover: rgba(48, 24, 30, 0.74); --glass-elevated: rgba(38, 18, 24, 0.88);
+    --glass-border: rgba(253, 186, 116, 0.14); --glass-border-focus: rgba(251, 146, 60, 0.65);
+    --accent-primary: #f97316; --accent-secondary: #ec4899; --accent-glow: rgba(249, 115, 22, 0.45);
+    --text-primary: #fff7ed; --text-secondary: #fed7aa; --text-muted: #fdba74;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--bg-base); color: var(--text-primary);
+    margin: 0; padding: 0; overflow-x: hidden; min-height: 100vh;
+    transition: background-color 0.85s var(--ease-out-expo), color 0.5s ease;
+  }
+  .font-mono-num { font-variant-numeric: tabular-nums; }
+  .ambient-canvas { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+  .ambient-orb { position: absolute; border-radius: 9999px; filter: blur(110px); will-change: transform, background-color;
+    transition: background-color 1.1s var(--ease-out-expo), transform 1.4s var(--ease-out-expo); }
+  .orb-1 { width: 55vw; height: 55vw; max-width: 780px; max-height: 780px; top: -15%; left: -8%; background: var(--orb-1); animation: floatOrb1 18s ease-in-out infinite alternate; }
+  .orb-2 { width: 50vw; height: 50vw; max-width: 720px; max-height: 720px; bottom: -18%; right: -10%; background: var(--orb-2); animation: floatOrb2 22s ease-in-out infinite alternate; }
+  .orb-3 { width: 40vw; height: 40vw; max-width: 560px; max-height: 560px; top: 30%; left: 42%; background: var(--orb-3); animation: floatOrb3 26s ease-in-out infinite alternate; }
+  @keyframes floatOrb1 { 0% { transform: translate3d(0,0,0) scale(1); } 100% { transform: translate3d(6vw,5vh,0) scale(1.12); } }
+  @keyframes floatOrb2 { 0% { transform: translate3d(0,0,0) scale(1.05); } 100% { transform: translate3d(-7vw,-6vh,0) scale(0.94); } }
+  @keyframes floatOrb3 { 0% { transform: translate3d(0,0,0) scale(0.95); } 100% { transform: translate3d(-5vw,7vh,0) scale(1.08); } }
+  .noise-overlay { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.028;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
+  .glass-panel {
+    background: var(--glass-surface); backdrop-filter: blur(26px) saturate(165%); -webkit-backdrop-filter: blur(26px) saturate(165%);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 18px 40px -12px rgba(0,0,0,0.35), inset 0 1px 0 0 rgba(255,255,255,0.14);
+    transition: background 0.4s var(--ease-smooth), border-color 0.35s var(--ease-smooth), box-shadow 0.4s var(--ease-out-expo), transform 0.45s var(--ease-spring);
+  }
+  .glass-pill {
+    background: var(--glass-surface); backdrop-filter: blur(20px) saturate(160%); -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid var(--glass-border); box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.12);
+    transition: all 0.35s var(--ease-spring);
+  }
+  .nav-indicator {
+    position: absolute; left: 8px; right: 8px; height: 52px; border-radius: 18px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    box-shadow: 0 8px 24px -4px var(--accent-glow), inset 0 1px 1px rgba(255,255,255,0.4);
+    transition: transform 0.52s var(--ease-spring), background 0.6s ease, box-shadow 0.6s ease;
+    z-index: 0; pointer-events: none;
+  }
+  .nav-item { position: relative; z-index: 1; min-height: 52px; border-radius: 18px; padding: 10px 16px;
+    background: none; border: none; color: var(--text-primary); text-align: left;
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: color 0.3s ease, transform 0.35s var(--ease-spring), opacity 0.3s ease; opacity: 0.75; }
+  .nav-item:hover { transform: translateX(3px); opacity: 1; }
+  .nav-item.active { color: #ffffff !important; opacity: 1; text-shadow: 0 1px 4px rgba(0,0,0,0.25); }
+  [data-theme="arctic"] .nav-item.active { color: #ffffff !important; }
+  .nav-glyph { font-size: 18px; width: 22px; text-align: center; flex-shrink: 0; }
+  .hero-card { border-radius: 28px; overflow: hidden; position: relative; min-height: 290px;
+    transition: transform 0.55s var(--ease-spring), box-shadow 0.55s var(--ease-out-expo); }
+  .hero-bg-layer { position: absolute; inset: 0; transition: opacity 0.65s var(--ease-out-expo), transform 0.85s var(--ease-out-expo); }
+  .hero-content-animate { animation: heroFadeSlide 0.55s var(--ease-out-expo) forwards; }
+  @keyframes heroFadeSlide { 0% { opacity: 0; transform: translateY(14px) scale(0.985); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+  .hero-art { display: flex; align-items: center; justify-content: center; font-size: 64px; }
+  .btn-launch {
+    position: relative; overflow: hidden; border: none; border-radius: 18px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: #ffffff; font-weight: 700; cursor: pointer;
+    box-shadow: 0 12px 30px -6px var(--accent-glow), inset 0 1px 1px rgba(255,255,255,0.45);
+    transition: transform 0.4s var(--ease-spring), box-shadow 0.4s ease;
+  }
+  .btn-launch:hover { transform: scale(1.045) translateY(-2px); box-shadow: 0 18px 38px -4px var(--accent-glow), inset 0 1px 2px rgba(255,255,255,0.65); }
+  .btn-launch:active { transform: scale(0.96); }
+  .ripple-wave { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.45); transform: scale(0);
+    animation: rippleAnim 0.65s var(--ease-out-expo); pointer-events: none; }
+  @keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
+  .launcher-card {
+    position: relative; border-radius: 24px; background: var(--glass-surface);
+    backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border: 1.5px solid var(--glass-border);
+    box-shadow: 0 14px 32px -10px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.14);
+    transform-style: preserve-3d; will-change: transform, box-shadow, border-color; cursor: pointer; outline: none; padding: 20px;
+    display: flex; flex-direction: column; justify-content: space-between; min-height: 176px;
+    transition: transform 0.48s var(--ease-spring), box-shadow 0.45s var(--ease-out-expo), border-color 0.35s ease, background 0.35s ease;
+  }
+  .card-stagger { opacity: 0; transform: translateY(22px) scale(0.95); animation: cardEntrance 0.6s var(--ease-spring) forwards; }
+  @keyframes cardEntrance { to { opacity: 1; transform: translateY(0) scale(1); } }
+  .launcher-card:hover, .launcher-card.is-focused {
+    background: var(--glass-surface-hover); border-color: var(--glass-border-focus);
+    box-shadow: 0 26px 50px -12px rgba(0,0,0,0.5), 0 0 0 3px var(--accent-glow), inset 0 1px 1px rgba(255,255,255,0.3);
+    z-index: 10;
+  }
+  .launcher-card.is-focused { transform: translateY(-8px) scale(1.045); }
+  .launcher-card::after { content: ""; position: absolute; inset: 0; border-radius: 23px;
+    background: linear-gradient(125deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 45%);
+    opacity: 0; transition: opacity 0.4s ease; pointer-events: none; }
+  .launcher-card:hover::after, .launcher-card.is-focused::after { opacity: 1; }
+  .backdrop-modal { background: rgba(4,6,12,0.62); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    opacity: 0; pointer-events: none; transition: opacity 0.38s var(--ease-out-expo); }
+  .backdrop-modal.open { opacity: 1; pointer-events: auto; }
+  .drawer-panel { transform: translateX(105%); transition: transform 0.52s var(--ease-spring); }
+  .backdrop-modal.open .drawer-panel { transform: translateX(0); }
+  .modal-pop { transform: scale(0.9) translateY(16px); opacity: 0; transition: transform 0.48s var(--ease-spring), opacity 0.35s ease; }
+  .backdrop-modal.open .modal-pop { transform: scale(1) translateY(0); opacity: 1; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  @keyframes progressSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(220%); } }
+  .shimmer-bar::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
+    animation: progressSweep 1.2s infinite ease-in-out; }
+  .theme-card.active-card { border-color: var(--accent-primary) !important; }
+  .toggle-track { width: 48px; height: 28px; border-radius: 999px; padding: 4px; background: rgba(128,128,128,0.35);
+    border: none; cursor: pointer; display: flex; align-items: center; transition: background 0.3s ease; }
+  .toggle-track.on { background: var(--accent-primary); }
+  .toggle-knob { width: 20px; height: 20px; border-radius: 999px; background: #ffffff; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    transform: translateX(0); transition: transform 0.35s var(--ease-spring); }
+  .toggle-track.on .toggle-knob { transform: translateX(20px); }
+  .app-input { width: 100%; background: rgba(128,128,128,0.14); border: 1px solid var(--glass-border);
+    border-radius: 14px; color: var(--text-primary); padding: 12px 14px; font-size: 14px; outline: none; user-select: text; }
+  .app-input:focus { border-color: var(--glass-border-focus); }
+  .stat-row { display: flex; align-items: center; gap: 14px; }
+  .progress-track { width: 100%; height: 8px; border-radius: 999px; background: rgba(0,0,0,0.28); overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 999px; background: var(--accent-primary); transition: width 0.7s var(--ease-out-expo); }
+  .btn-danger { border-radius: 16px; padding: 12px 24px; font-weight: 700; font-size: 14px; cursor: pointer; border: none;
+    background: linear-gradient(135deg, #f43f5e, #ec4899); color: #fff;
+    box-shadow: 0 10px 26px -8px rgba(244,63,94,0.5); transition: transform 0.35s var(--ease-spring); }
+  .btn-danger:hover { transform: scale(1.04); }
+  .btn-danger:active { transform: scale(0.96); }
+  .btn-ghost { border-radius: 16px; padding: 12px 24px; font-weight: 600; font-size: 14px; cursor: pointer;
+    background: var(--glass-surface); border: 1px solid var(--glass-border); color: var(--text-primary);
+    transition: transform 0.35s var(--ease-spring), background 0.3s ease; }
+  .btn-ghost:hover { transform: scale(1.04); background: var(--glass-surface-hover); }
+</style>
+</head>
+<body>
+  <div class="ambient-canvas" aria-hidden="true">
+    <div id="orb1" class="ambient-orb orb-1"></div>
+    <div id="orb2" class="ambient-orb orb-2"></div>
+    <div id="orb3" class="ambient-orb orb-3"></div>
+  </div>
+  <div class="noise-overlay" aria-hidden="true"></div>
+
+  <div style="position:relative; z-index:10; display:flex; flex-direction:column; min-height:100vh; max-width:1680px; margin:0 auto; padding:20px 24px; gap:20px;">
+
+    <header class="glass-panel" style="border-radius:24px; padding:12px 22px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px;">
+      <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:44px; height:44px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:20px;
+             background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); box-shadow: 0 8px 20px -4px var(--accent-glow);">✦</div>
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-weight:800; letter-spacing:-0.02em; font-size:18px; line-height:1;">Okelauncher</span>
+            <span style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.1em; padding:2px 8px; border-radius:999px; background:rgba(255,255,255,0.10); border:1px solid rgba(255,255,255,0.15);">OS 2.4</span>
+          </div>
+          <p style="font-size:12px; opacity:0.65; margin:2px 0 0;">Universal Console &amp; Media Hub</p>
+        </div>
+      </div>
+
+      <div id="telemetryPills" style="display:none; align-items:center; gap:10px;"></div>
+
+      <div style="display:flex; align-items:center; gap:10px; margin-left:auto;">
+        <button id="weatherBtn" onclick="refreshWeather()" title="Refresh weather"
+                class="glass-pill" style="border-radius:16px; padding:9px 14px; display:flex; align-items:center; gap:10px; cursor:pointer; color:inherit; font:inherit;">
+          <span id="weatherIcon" style="font-size:16px;">⏳</span>
+          <span style="line-height:1.25; text-align:left;">
+            <span style="display:flex; align-items:center; gap:6px;">
+              <span id="weatherTemp" class="font-mono-num" style="font-size:12px; font-weight:700;">—</span>
+              <span id="weatherCond" style="font-size:11px; opacity:0.75;"></span>
+            </span>
+            <span id="weatherCity" style="display:block; font-size:10px; opacity:0.6; font-weight:500;">locating…</span>
+          </span>
+        </button>
+
+        <button onclick="toggleSound()" title="Toggle UI sounds" class="glass-pill"
+                style="border-radius:15px; width:40px; height:40px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; border:1px solid var(--glass-border); background:var(--glass-surface); color:inherit;">
+          <span id="soundIcon">🔊</span>
+        </button>
+
+        <button onclick="openSearchModal()" title="Search (press /)" class="glass-pill"
+                style="height:40px; padding:0 14px; border-radius:15px; display:flex; align-items:center; gap:8px; cursor:pointer; color:inherit; font:inherit; border:1px solid var(--glass-border);">
+          <span style="font-size:14px; opacity:0.85;">🔍</span>
+          <span style="font-size:12px; font-weight:500; opacity:0.75;">Search</span>
+          <kbd class="font-mono-num" style="font-size:10px; padding:2px 6px; border-radius:6px; background:rgba(255,255,255,0.10); opacity:0.7;">/</kbd>
+        </button>
+
+        <button onclick="openThemeDrawer()" title="Customize theme" class="glass-pill"
+                style="height:40px; padding:0 14px; border-radius:15px; display:flex; align-items:center; gap:8px; cursor:pointer; color:inherit; font:inherit; border:1px solid var(--glass-border);">
+          <span style="font-size:14px;">🎨</span>
+          <span style="font-size:12px; font-weight:600;">Themes</span>
+        </button>
+
+        <div style="padding-left:10px; border-left:1px solid rgba(255,255,255,0.15); text-align:right; line-height:1.25;">
+          <div id="liveClock" class="font-mono-num" style="font-size:16px; font-weight:800; letter-spacing:-0.02em;">—</div>
+          <div id="liveDate" style="font-size:10px; opacity:0.65; font-weight:500;">—</div>
+        </div>
+      </div>
+    </header>
+
+    <div style="display:flex; flex-direction:row; gap:20px; flex:1; min-height:0;">
+
+      <nav aria-label="Primary categories" class="glass-panel no-scrollbar"
+           style="border-radius:26px; padding:8px; width:224px; flex-shrink:0; flex-direction:column; max-height:calc(100vh - 130px); overflow-y:auto;">
+        <div id="navContainer" style="position:relative; display:flex; flex-direction:column; gap:6px; width:100%;">
+          <div id="navSpringPill" class="nav-indicator"></div>
+        </div>
+        <div id="navHint" style="display:flex; flex-direction:column; gap:8px; margin-top:18px; padding:14px; border-radius:20px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); font-size:11px;">
+          <div style="font-weight:700; opacity:0.9;">⌨ Console Navigation</div>
+          <div style="display:flex; justify-content:space-between; opacity:0.7;"><span>Move Focus</span><span class="font-mono-num" style="background:rgba(255,255,255,0.10); padding:2px 6px; border-radius:6px;">← ↑ ↓ →</span></div>
+          <div style="display:flex; justify-content:space-between; opacity:0.7;"><span>Launch Item</span><span class="font-mono-num" style="background:rgba(255,255,255,0.10); padding:2px 6px; border-radius:6px;">Enter</span></div>
+          <div style="display:flex; justify-content:space-between; opacity:0.7;"><span>Quick Search</span><span class="font-mono-num" style="background:rgba(255,255,255,0.10); padding:2px 6px; border-radius:6px;">/</span></div>
+          <div style="display:flex; justify-content:space-between; opacity:0.7;"><span>Add App</span><span class="font-mono-num" style="background:rgba(255,255,255,0.10); padding:2px 6px; border-radius:6px;">A</span></div>
+        </div>
+      </nav>
+
+      <main style="flex:1; display:flex; flex-direction:column; gap:22px; min-width:0; overflow-y:auto; max-height:calc(100vh - 130px); padding-right:4px;">
+
+        <section id="heroBanner" class="hero-card glass-panel" style="padding:32px 40px; display:flex; flex-direction:column; justify-content:flex-end;">
+          <div id="heroGradient" class="hero-bg-layer"></div>
+          <div id="heroArtBadge" class="glass-panel hero-art"
+               style="position:absolute; right:40px; top:50%; transform:translateY(-50%); width:176px; height:176px; border-radius:32px; box-shadow: 0 30px 60px -12px rgba(0,0,0,0.5);"></div>
+          <div id="heroContent" class="hero-content-animate" style="position:relative; z-index:10; max-width:640px;">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:12px;">
+              <span id="heroTag" class="font-mono-num" style="padding:4px 12px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; background:rgba(255,255,255,0.15); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.20);">Featured Experience</span>
+              <span id="heroMeta" style="padding:4px 12px; border-radius:999px; font-size:11px; background:rgba(0,0,0,0.25); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.10); opacity:0.85;"></span>
+            </div>
+            <h1 id="heroTitle" style="font-size:38px; font-weight:800; letter-spacing:-0.02em; line-height:1.15; margin:0;">Loading…</h1>
+            <p id="heroDesc" style="font-size:15px; opacity:0.8; margin:10px 0 0; line-height:1.55; max-width:560px;"></p>
+            <div style="display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin-top:24px;">
+              <button id="heroLaunchBtn" onclick="launchFocused(event)" class="btn-launch" style="padding:14px 26px; display:flex; align-items:center; gap:10px; font-size:15px;">
+                <span>▶</span><span id="heroBtnLabel">Launch Now</span>
+              </button>
+              <button onclick="openDetailsModal()" class="glass-pill" style="padding:13px 20px; border-radius:18px; font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer; color:inherit; font:inherit; border:1px solid var(--glass-border);">
+                <span style="opacity:0.8;">ℹ</span><span>Details</span>
+              </button>
+              <button onclick="openAddModal()" class="glass-pill" style="padding:13px 20px; border-radius:18px; font-size:14px; font-weight:600; display:flex; align-items:center; gap:8px; cursor:pointer; color:inherit; font:inherit; border:1px solid var(--glass-border);">
+                <span style="opacity:0.8;">＋</span><span>Add App</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; padding:0 4px;">
+          <div>
+            <h2 id="sectionHeading" style="font-size:20px; font-weight:700; letter-spacing:-0.02em; margin:0;">Jump Back In</h2>
+            <p id="sectionSubheading" style="font-size:12px; opacity:0.65; margin:2px 0 0;"></p>
+          </div>
+          <div>
+            <span id="itemCountBadge" class="glass-pill font-mono-num" style="padding:6px 14px; border-radius:999px; font-size:12px; font-weight:600;"></span>
+          </div>
+        </div>
+
+        <section id="cardsGrid" aria-label="Launcher applications"
+                 style="display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:18px; padding-bottom:28px;"></section>
+
+      </main>
+    </div>
+  </div>
+
+  <div id="themeDrawerBackdrop" class="backdrop-modal fixed" onclick="closeThemeDrawer(event)"
+       style="position:fixed; inset:0; z-index:50; display:flex; justify-content:flex-end;">
+    <div class="drawer-panel glass-panel no-scrollbar" onclick="event.stopPropagation()"
+         style="width:100%; max-width:430px; height:100%; border-radius:30px 0 0 30px; padding:28px; display:flex; flex-direction:column; justify-content:space-between; overflow-y:auto; background:var(--glass-elevated);">
+      <div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:18px; border-bottom:1px solid var(--glass-border);">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:40px; height:40px; border-radius:14px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.10); font-size:18px;">🎨</div>
+            <div>
+              <h3 style="font-size:18px; font-weight:800; margin:0;">Visual Themes</h3>
+              <p style="font-size:12px; opacity:0.65; margin:2px 0 0;">Real-time glass &amp; ambient glow engine</p>
+            </div>
+          </div>
+          <button onclick="closeThemeDrawer()" class="glass-pill" style="width:36px; height:36px; border-radius:999px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1px solid var(--glass-border); background:var(--glass-surface); color:inherit; font:inherit;">✕</button>
+        </div>
+
+        <div id="themeCards" style="margin-top:22px; display:flex; flex-direction:column; gap:14px;"></div>
+
+        <div style="margin-top:24px; padding:16px; border-radius:22px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border);">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div>
+              <div style="font-size:14px; font-weight:700;">3D Card Perspective Tilt</div>
+              <div style="font-size:12px; opacity:0.65;">Dynamic cursor &amp; focus elevation</div>
+            </div>
+            <button id="tiltToggle" class="toggle-track on" onclick="toggleTilt()"><div class="toggle-knob"></div></button>
+          </div>
+        </div>
+      </div>
+      <div style="padding-top:16px; border-top:1px solid var(--glass-border); display:flex; justify-content:space-between; font-size:12px; opacity:0.65;">
+        <span>Okelauncher UI Engine</span><span class="font-mono-num">60 FPS Hardware Accel</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="searchModalBackdrop" class="backdrop-modal" onclick="closeSearchModal(event)"
+       style="position:fixed; inset:0; z-index:50; display:flex; align-items:flex-start; justify-content:center; padding-top:80px;">
+    <div class="modal-pop glass-panel" onclick="event.stopPropagation()" style="width:100%; max-width:580px; border-radius:28px; padding:22px; box-shadow: 0 40px 90px -20px rgba(0,0,0,0.7); background:var(--glass-elevated);">
+      <div style="display:flex; align-items:center; gap:12px; padding:12px 16px; border-radius:18px; background:rgba(128,128,128,0.14); border:1px solid var(--glass-border);">
+        <span style="font-size:16px; opacity:0.75;">🔍</span>
+        <input id="searchInput" type="text" placeholder="Search games, apps, media, or system tools..." oninput="renderSearchResults(this.value)"
+               style="flex:1; background:transparent; outline:none; border:none; color:var(--text-primary); font-size:15px; font-weight:500; user-select:text;" />
+        <button onclick="closeSearchModal()" style="border:none; cursor:pointer; font-size:11px; padding:4px 10px; border-radius:10px; background:rgba(255,255,255,0.10); opacity:0.75; color:inherit; font:inherit;">ESC</button>
+      </div>
+      <div id="searchResults" class="no-scrollbar" style="margin-top:16px; max-height:320px; overflow-y:auto; display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+  </div>
+
+  <div id="launchOverlay" class="backdrop-modal" style="position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;">
+    <div class="modal-pop glass-panel" style="width:100%; max-width:420px; border-radius:30px; padding:28px; text-align:center; box-shadow: 0 40px 90px -20px rgba(0,0,0,0.7); background:var(--glass-elevated);">
+      <div style="width:80px; height:80px; margin:0 auto 20px; border-radius:24px; display:flex; align-items:center; justify-content:center; font-size:38px;
+           background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); box-shadow: 0 20px 40px -10px var(--accent-glow);">
+        <span id="launchIcon">✦</span>
+      </div>
+      <div class="font-mono-num" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.12em; opacity:0.65;">Initializing Environment</div>
+      <h3 id="launchTitle" style="font-size:24px; font-weight:800; margin:4px 0 0;"></h3>
+      <p id="launchSub" style="font-size:12px; opacity:0.75; margin:6px 0 0;"></p>
+      <div class="progress-track" style="margin-top:24px; position:relative;">
+        <div id="launchProgress" class="progress-fill shimmer-bar" style="width:0%; position:relative;"></div>
+      </div>
+      <button onclick="cancelLaunch()" class="glass-pill" style="margin-top:22px; padding:9px 20px; border-radius:14px; font-size:12px; font-weight:600; opacity:0.85; cursor:pointer; border:1px solid var(--glass-border); background:var(--glass-surface); color:inherit; font:inherit;">Cancel</button>
+    </div>
+  </div>
+
+  <div id="detailsModalBackdrop" class="backdrop-modal" onclick="closeDetailsModal(event)"
+       style="position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;">
+    <div class="modal-pop glass-panel" onclick="event.stopPropagation()" style="width:100%; max-width:500px; border-radius:28px; padding:26px; box-shadow: 0 40px 90px -20px rgba(0,0,0,0.7); background:var(--glass-elevated);">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px;">
+        <div>
+          <span id="detailBadge" class="font-mono-num" style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,0.10);"></span>
+          <h3 id="detailTitle" style="font-size:24px; font-weight:800; margin:8px 0 0;"></h3>
+        </div>
+        <button onclick="closeDetailsModal()" class="glass-pill" style="width:36px; height:36px; border-radius:999px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1px solid var(--glass-border); background:var(--glass-surface); color:inherit; font:inherit;">✕</button>
+      </div>
+      <p id="detailDesc" style="font-size:14px; opacity:0.8; margin-top:12px; line-height:1.55; word-break:break-all;"></p>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-top:18px;">
+        <div style="padding:12px; border-radius:18px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border);">
+          <div style="font-size:10px; text-transform:uppercase; opacity:0.6;">Type</div>
+          <div id="detailType" class="font-mono-num" style="font-size:14px; font-weight:700; margin-top:2px;"></div>
+        </div>
+        <div style="padding:12px; border-radius:18px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border);">
+          <div style="font-size:10px; text-transform:uppercase; opacity:0.6;">Tags</div>
+          <div id="detailTags" style="font-size:13px; font-weight:600; margin-top:2px;"></div>
+        </div>
+        <div style="padding:12px; border-radius:18px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border);">
+          <div style="font-size:10px; text-transform:uppercase; opacity:0.6;">Status</div>
+          <div id="detailStatus" style="font-size:13px; font-weight:700; margin-top:2px; color:#34d399;"></div>
+        </div>
+      </div>
+      <div style="margin-top:22px; display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap;">
+        <button onclick="toggleFavoriteFromDetails()" class="btn-ghost" id="detailFavBtn">★ Favourite</button>
+        <button onclick="removeFromDetails()" class="btn-ghost" style="color:#fb7185;">🗑 Remove</button>
+        <button onclick="closeDetailsModal(); triggerAppLaunch(detailItem);" class="btn-launch" style="padding:10px 22px; font-size:13px;">▶ Launch Now</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="addModalBackdrop" class="backdrop-modal" onclick="closeAddModal(event)"
+       style="position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;">
+    <div class="modal-pop glass-panel" onclick="event.stopPropagation()" style="width:100%; max-width:460px; border-radius:28px; padding:26px; box-shadow: 0 40px 90px -20px rgba(0,0,0,0.7); background:var(--glass-elevated);">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h3 style="font-size:20px; font-weight:800; margin:0;">＋ Add App</h3>
+        <button onclick="closeAddModal()" class="glass-pill" style="width:36px; height:36px; border-radius:999px; display:flex; align-items:center; justify-content:center; cursor:pointer; border:1px solid var(--glass-border); background:var(--glass-surface); color:inherit; font:inherit;">✕</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:12px; margin-top:18px;">
+        <input id="addName" class="app-input" placeholder="App name (e.g. Steam)" />
+        <input id="addCommand" class="app-input" placeholder="Command or URL (e.g. steam:// or C:\Games\game.exe)" />
+        <input id="addTags" class="app-input" placeholder="Category tags, comma-separated (e.g. gaming, media)" />
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <input id="addIcon" class="app-input" placeholder="Glyph, e.g. 🎮" />
+          <input id="addColor" class="app-input" placeholder="Color #rrggbb" />
+        </div>
+      </div>
+      <div style="margin-top:20px; display:flex; justify-content:flex-end; gap:10px;">
+        <button onclick="closeAddModal()" class="btn-ghost">Cancel</button>
+        <button onclick="submitAddApp()" class="btn-launch" style="padding:10px 22px; font-size:13px;">Save to launchers.json</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirmModalBackdrop" class="backdrop-modal" onclick="closeConfirm(false, event)"
+       style="position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;">
+    <div class="modal-pop glass-panel" onclick="event.stopPropagation()" style="width:100%; max-width:400px; border-radius:26px; padding:26px; text-align:center; background:var(--glass-elevated);">
+      <div id="confirmIcon" style="font-size:36px;">⚠️</div>
+      <h3 id="confirmTitle" style="font-size:20px; font-weight:800; margin:8px 0 0;"></h3>
+      <p id="confirmText" style="font-size:13px; opacity:0.75; margin:10px 0 0;"></p>
+      <div style="margin-top:22px; display:flex; justify-content:center; gap:10px;">
+        <button onclick="closeConfirm(false)" class="btn-ghost">Cancel</button>
+        <button onclick="closeConfirm(true)" class="btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const THEME_PRESETS = [
+      { id: "obsidian", name: "Midnight Obsidian", desc: "Deep console slate with electric cyan glow", swatch: "linear-gradient(135deg,#0f172a,#38bdf8,#6366f1)" },
+      { id: "aurora",   name: "Cyber Aurora",       desc: "Emerald northern lights & ultraviolet depth", swatch: "linear-gradient(135deg,#022c22,#10b981,#a855f7)" },
+      { id: "arctic",   name: "Arctic Frosted Glass", desc: "Bright translucent daylight acrylic studio", swatch: "linear-gradient(135deg,#e2e8f0,#93c5fd,#0ea5e9)" },
+      { id: "sunset",   name: "Sunset Amber",       desc: "Warm twilight cinema glow & coral highlights", swatch: "linear-gradient(135deg,#4c0519,#f97316,#ec4899)" },
+    ];
+    const LEGACY_THEMES = { midnight: "obsidian", oled: "obsidian", sapphire: "aurora" };
+    let state = null;
+    let currentKey = "home";
+    let focusedCardIndex = 0;
+    let soundEnabled = true;
+    let tiltEnabled = true;
+    let launchInterval = null;
+    let detailItem = null;
+    let weatherData = null;
+    const HERO_GRADIENTS = [
+      "radial-gradient(circle at 85% 20%, rgba(56,189,248,0.42), transparent 55%), linear-gradient(120deg, rgba(15,23,42,0.85) 15%, rgba(30,41,59,0.35) 100%)",
+      "radial-gradient(circle at 82% 25%, rgba(168,85,247,0.45), transparent 55%), linear-gradient(120deg, rgba(17,24,39,0.85) 15%, rgba(49,46,129,0.35) 100%)",
+      "radial-gradient(circle at 82% 25%, rgba(244,63,94,0.42), transparent 55%), linear-gradient(120deg, rgba(24,16,28,0.85) 15%, rgba(76,29,149,0.30) 100%)",
+      "radial-gradient(circle at 82% 25%, rgba(16,185,129,0.42), transparent 55%), linear-gradient(120deg, rgba(6,44,36,0.85) 15%, rgba(12,74,110,0.35) 100%)",
+    ];
+
+    async function post(path, body) {
+      const resp = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+      return resp.json().catch(() => ({}));
+    }
+
+    async function boot() {
+      state = await (await fetch("/api/state")).json();
+      applyTheme(LEGACY_THEMES[state.theme] || state.theme, false);
+      renderNav();
+      updateClock();
+      setInterval(updateClock, 1000);
+      pollStats();
+      setInterval(pollStats, 2400);
+      refreshWeather();
+      selectCategory("home");
+    }
+    boot();
+
+    function navItems() {
+      const items = [
+        { key: "home", glyph: "🏠", title: "Home" },
+        { key: "apps", glyph: "🗂", title: "All apps" },
+        { key: "favorites", glyph: "★", title: "Favourites" },
+        { key: "stats", glyph: "📊", title: "System monitor" },
+      ];
+      state.categories.forEach((cat, i) => items.push({ key: "cat:" + i, glyph: cat.glyph || "▸", title: cat.title, special: cat.special }));
+      items.push({ key: "power", glyph: "⏻", title: "Power & Exit" });
+      return items;
+    }
+
+    function renderNav() {
+      const container = document.getElementById("navContainer");
+      container.innerHTML = '<div id="navSpringPill" class="nav-indicator"></div>';
+      navItems().forEach((item) => {
+        const btn = document.createElement("button");
+        btn.className = "nav-item";
+        btn.dataset.cat = item.key;
+        btn.innerHTML = `<span class="nav-glyph">${item.glyph}</span><span>${item.title}</span>`;
+        btn.onclick = () => selectCategory(item.key);
+        container.appendChild(btn);
+      });
+    }
+
+    function entriesFor(key) {
+      if (!key || key === "home") return [];
+      if (key === "apps") return state.entries;
+      if (key === "favorites") return state.entries.filter((e) => e.favorite);
+      if (key.startsWith("cat:")) {
+        const cat = state.categories[+key.slice(4)];
+        if (!cat) return [];
+        const wanted = new Set(cat.tags || []);
+        return state.entries.filter((e) => (e.tags || []).some((t) => wanted.has(t)));
+      }
+      return [];
+    }
+
+    function selectCategory(key) {
+      if (key.startsWith("cat:") && !state.categories[+key.slice(4)]) return;
+      currentKey = key;
+      focusedCardIndex = 0;
+      playUiSound("select");
+      document.querySelectorAll("#navContainer .nav-item").forEach((btn) => btn.classList.toggle("active", btn.dataset.cat === key));
+      moveSpringPill(key);
+      const item = navItems().find((i) => i.key === key) || {};
+      const isHome = key === "home";
+      let items = entriesFor(key);
+      let subheading = "";
+      if (isHome) {
+        const recents = state.history.map((n) => state.entries.find((e) => e.name === n)).filter(Boolean);
+        const leftover = state.entries.filter((e) => !recents.includes(e));
+        items = [...recents.map((e) => ({ ...e, resume: true })), ...leftover];
+        subheading = "Recently played titles & pinned essentials";
+        document.getElementById("cardsSectionLabel")?.remove?.();
+      } else if (key === "stats") {
+        subheading = "Live CPU, memory, disk and OS telemetry";
+      } else {
+        const cat = key.startsWith("cat:") ? state.categories[+key.slice(4)] : null;
+        subheading = cat ? (cat.desc || "") : "Every entry in launchers.json";
+      }
+      document.getElementById("sectionHeading").textContent =
+        isHome ? "Jump Back In" : key === "apps" ? "Applications" : key === "favorites" ? "Favourites" : key === "stats" ? "System Monitor" : key === "power" ? "Power & Exit" : item.title;
+      document.getElementById("sectionSubheading").textContent = subheading;
+
+      if (key === "power") { renderPower(); return; }
+      if (key === "stats") { renderStatsView(); return; }
+      document.getElementById("itemCountBadge").textContent = `${items.length} Items`;
+      renderCards(items, isHome);
+      if (!items.length) renderEmptyNote(key);
+    }
+
+    function moveSpringPill(key) {
+      const pill = document.getElementById("navSpringPill");
+      const target = document.querySelector(`#navContainer .nav-item[data-cat="${CSS.escape(key)}"]`);
+      if (pill && target) pill.style.transform = `translateY(${target.offsetTop}px)`;
+    }
+
+    function itemBadge(item, isHome) {
+      if (item.favorite) return "★ PINNED";
+      if (isHome && item.resume) return "RESUME";
+      if (item.tags && item.tags.length) return item.tags[0].toUpperCase();
+      return item.type === "url" ? "BROWSER" : "APP";
+    }
+
+    function accentFor(item) { return item.color || getComputedStyle(document.documentElement).getPropertyValue("--accent-primary").trim(); }
+
+    function renderCards(items, isHome) {
+      const grid = document.getElementById("cardsGrid");
+      grid.innerHTML = "";
+      items.forEach((item, idx) => {
+        const card = document.createElement("div");
+        card.className = `launcher-card card-stagger ${idx === focusedCardIndex ? "is-focused" : ""}`;
+        card.style.animationDelay = `${idx * 45}ms`;
+        card.tabIndex = 0;
+        card.dataset.index = idx;
+        const accent = accentFor(item);
+        card.innerHTML = `
+          <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+            <div style="width:48px; height:48px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow: 0 10px 22px -6px ${accent}88; background: linear-gradient(135deg, ${accent}, rgba(255,255,255,0.18));">${item.icon || item.name.charAt(0).toUpperCase()}</div>
+            <span style="font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,0.10); border:1px solid var(--glass-border); white-space:nowrap;">${itemBadge(item, isHome)}</span>
+          </div>
+          <div style="margin-top:18px;">
+            <h3 style="font-weight:700; font-size:16px; letter-spacing:-0.01em; line-height:1.3; margin:0;">${item.name}</h3>
+            <p style="font-size:12px; opacity:0.65; margin:4px 0 0; font-weight:500;">${item.resume ? "Recently played" : (item.command || "")}</p>
+          </div>`;
+        card.addEventListener("mouseenter", () => { setFocusedCard(+card.dataset.index); playUiSound("hover"); });
+        card.addEventListener("focus", () => setFocusedCard(+card.dataset.index));
+        card.addEventListener("mousemove", (e) => {
+          if (!tiltEnabled) return;
+          const rect = card.getBoundingClientRect();
+          const rx = ((e.clientY - rect.top) / rect.height - 0.5) * -12;
+          const ry = ((e.clientX - rect.left) / rect.width - 0.5) * 12;
+          card.style.transform = `translateY(-8px) scale(1.045) perspective(700px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+        });
+        card.addEventListener("mouseleave", () => { card.style.transform = ""; });
+        card.addEventListener("click", (e) => { createRipple(e, card); triggerAppLaunch(item); });
+        grid.appendChild(card);
+      });
+      syncHero(items);
+    }
+
+    function renderEmptyNote(key) {
+      const grid = document.getElementById("cardsGrid");
+      const note = document.createElement("div");
+      note.className = "glass-panel";
+      note.style.cssText = "grid-column:1/-1; border-radius:24px; padding:48px; text-align:center; font-size:14px; opacity:0.75; line-height:1.7;";
+      note.innerHTML = key === "favorites"
+        ? "No favourites yet.<br>Open a card's <b>Details</b> and press ★ Favourite to pin it here."
+        : key === "apps"
+          ? "launchers.json has no entries yet.<br>Use <b>＋ Add App</b> to create your first tile."
+          : "Nothing here yet.<br>Entries with <b>" + (state.categories[+key.slice(4)]?.tags || []).join(" / ") + "</b> tags will appear on this page.<br>Use ＋ Add App to tag one.";
+      grid.appendChild(note);
+    }
+
+    function syncHero(items) {
+      const focused = items[focusedCardIndex] || items[0];
+      const grad = document.getElementById("heroGradient");
+      if (!focused) {
+        document.getElementById("heroTag").textContent = "Featured Experience";
+        document.getElementById("heroTitle").textContent = "Add your first app";
+        document.getElementById("heroDesc").textContent = "Use ＋ Add App to put your favorites, games and streaming sites on the big screen.";
+        document.getElementById("heroMeta").textContent = "";
+        document.getElementById("heroArtBadge").textContent = "✦";
+        grad.style.background = HERO_GRADIENTS[0];
+        return;
+      }
+      grad.style.background = HERO_GRADIENTS[Math.abs(hash(focused.name)) % HERO_GRADIENTS.length];
+      document.getElementById("heroTag").textContent = itemBadge(focused, currentKey === "home");
+      document.getElementById("heroMeta").textContent = (focused.tags || []).join(" • ") || (focused.type === "url" ? "Web app" : "Desktop app");
+      document.getElementById("heroTitle").textContent = focused.name;
+      document.getElementById("heroDesc").textContent = `Launch ${focused.command || focused.name} instantly with Okelauncher's low-latency overlay.`;
+      document.getElementById("heroArtBadge").textContent = focused.icon || "✦";
+      const content = document.getElementById("heroContent");
+      content.classList.remove("hero-content-animate");
+      void content.offsetWidth;
+      content.classList.add("hero-content-animate");
+    }
+
+    function hash(str) { let h = 0; for (let i = 0; i < str.length; i++) { h = (h * 31 + str.charCodeAt(i)) | 0; } return h; }
+
+    function setFocusedCard(index) {
+      const cards = document.querySelectorAll("#cardsGrid .launcher-card");
+      if (!cards.length) return;
+      focusedCardIndex = Math.max(0, Math.min(index, cards.length - 1));
+      cards.forEach((c, i) => {
+        c.classList.toggle("is-focused", i === focusedCardIndex);
+        if (i !== focusedCardIndex) c.style.transform = "";
+      });
+      syncHero(renderedItems);
+    }
+
+    let renderedItems = [];
+    const _renderCards = renderCards;
+    renderCards = function (items, isHome) { renderedItems = items; _renderCards(items, isHome); };
+
+    function renderStatsView() {
+      renderedItems = [];
+      document.getElementById("itemCountBadge").textContent = "Live";
+      const grid = document.getElementById("cardsGrid");
+      grid.innerHTML = "";
+      fetch("/api/stats").then((r) => r.json()).then((stats) => {
+        stats.forEach((row) => {
+          const card = document.createElement("div");
+          card.className = "glass-panel card-stagger";
+          card.style.cssText = "border-radius:24px; padding:20px; border:1px solid var(--glass-border);";
+          card.innerHTML = `<div class="stat-row"><div style="min-width:130px; font-weight:700; font-size:14px;">${row[0]}</div><div style="flex:1; font-size:13px; opacity:0.85;" class="font-mono-num">${row[1]}</div></div>`;
+          grid.appendChild(card);
+        });
+      });
+    }
+
+    function renderPower() {
+      renderedItems = [];
+      document.getElementById("itemCountBadge").textContent = "Careful";
+      const grid = document.getElementById("cardsGrid");
+      grid.innerHTML = "";
+      const actions = [
+        ["🌙", "Sleep", "Put this PC to sleep", "sleep"],
+        ["🔄", "Restart", "Restart the operating system", "restart"],
+        ["⏻", "Shut down", "Power off the machine", "shutdown"],
+        ["✕", "Close launcher", "Stop Okelauncher and close this window", "exit"],
+      ];
+      actions.forEach(([glyph, title, desc, action], idx) => {
+        const card = document.createElement("div");
+        card.className = "launcher-card card-stagger";
+        card.style.animationDelay = `${idx * 45}ms`;
+        card.innerHTML = `
+          <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+            <div style="width:48px; height:48px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:24px; background: rgba(255,255,255,0.10);">${glyph}</div>
+          </div>
+          <div style="margin-top:18px;">
+            <h3 style="font-weight:700; font-size:16px; margin:0;">${title}</h3>
+            <p style="font-size:12px; opacity:0.65; margin:4px 0 0;">${desc}</p>
+          </div>`;
+        card.addEventListener("click", () => confirmPower(action, title));
+        grid.appendChild(card);
+      });
+    }
+
+    function confirmPower(action, title) {
+      if (action === "exit") { post("/api/shutdown").then(() => { window.close(); document.body.innerHTML = "<p style='text-align:center;margin-top:40vh;font-family:sans-serif;opacity:0.8'>Okelauncher closed. You can close this tab.</p>"; }); return; }
+      document.getElementById("confirmIcon").textContent = title === "Shut down" ? "⏻" : "🌙";
+      document.getElementById("confirmTitle").textContent = title + "?";
+      document.getElementById("confirmText").textContent = "Really " + title.toLowerCase() + " this PC right now?";
+      document.getElementById("confirmModalBackdrop").classList.add("open");
+      confirmAction = action;
+    }
+    let confirmAction = null;
+    function closeConfirm(confirmed, e) {
+      if (e && e.target !== e.currentTarget && !confirmed) { return; }
+      document.getElementById("confirmModalBackdrop").classList.remove("open");
+      if (confirmed && confirmAction) {
+        playUiSound("launch");
+        post("/api/power", { action: confirmAction });
+      }
+      if (e) e.stopPropagation?.();
+    }
+
+    async function refreshState() { state = await (await fetch("/api/state")).json(); }
+
+    async function triggerAppLaunch(item) {
+      playUiSound("launch");
+      document.getElementById("launchIcon").textContent = item.icon || "✦";
+      document.getElementById("launchTitle").textContent = item.name;
+      document.getElementById("launchSub").textContent = item.type === "url" ? "Opening in your browser..." : "Starting the application...";
+      const overlay = document.getElementById("launchOverlay");
+      const bar = document.getElementById("launchProgress");
+      bar.style.width = "0%";
+      overlay.classList.add("open");
+      await post("/api/launch", { name: item.name });
+      let progress = 0;
+      clearInterval(launchInterval);
+      launchInterval = setInterval(() => {
+        progress += Math.floor(Math.random() * 24) + 14;
+        if (progress >= 100) {
+          progress = 100;
+          bar.style.width = "100%";
+          document.getElementById("launchSub").textContent = "Running! Press ESC or Cancel to return.";
+          clearInterval(launchInterval);
+          setTimeout(() => overlay.classList.remove("open"), 900);
+        } else { bar.style.width = progress + "%"; }
+      }, 200);
+      await refreshState();
+    }
+    function cancelLaunch() {
+      clearInterval(launchInterval);
+      document.getElementById("launchOverlay").classList.remove("open");
+    }
+
+    function createRipple(event, element) {
+      const diameter = Math.max(element.clientWidth, element.clientHeight);
+      const circle = document.createElement("span");
+      const rect = element.getBoundingClientRect();
+      circle.style.width = circle.style.height = diameter + "px";
+      circle.style.left = ((event.clientX || rect.left + diameter / 2) - rect.left - diameter / 2) + "px";
+      circle.style.top = ((event.clientY || rect.top + diameter / 2) - rect.top - diameter / 2) + "px";
+      circle.classList.add("ripple-wave");
+      const existing = element.querySelector(".ripple-wave");
+      if (existing) existing.remove();
+      element.appendChild(circle);
+    }
+
+    function launchFocused(e) {
+      if (e) createRipple(e, document.getElementById("heroLaunchBtn"));
+      const items = renderedItems;
+      const target = items[focusedCardIndex];
+      if (target) triggerAppLaunch(target);
+      else openAddModal();
+    }
+
+    function openDetailsModal() {
+      const item = renderedItems[focusedCardIndex];
+      if (!item) return;
+      detailItem = item;
+      playUiSound("select");
+      document.getElementById("detailBadge").textContent = itemBadge(item, currentKey === "home");
+      document.getElementById("detailTitle").textContent = item.name;
+      document.getElementById("detailDesc").textContent = item.command || "—";
+      document.getElementById("detailType").textContent = item.type === "url" ? "Browser" : "Desktop";
+      document.getElementById("detailTags").textContent = (item.tags || []).join(", ") || "—";
+      document.getElementById("detailStatus").textContent = item.favorite ? "★ Pinned" : "Ready";
+      document.getElementById("detailFavBtn").textContent = item.favorite ? "★ Unfavourite" : "★ Favourite";
+      document.getElementById("detailsModalBackdrop").classList.add("open");
+    }
+    function closeDetailsModal(e) {
+      if (!e || e.target === document.getElementById("detailsModalBackdrop")) {
+        document.getElementById("detailsModalBackdrop").classList.remove("open");
+      }
+    }
+    async function toggleFavoriteFromDetails() {
+      if (!detailItem) return;
+      await post("/api/favorite", { name: detailItem.name });
+      await refreshState();
+      closeDetailsModal();
+      selectCategory(currentKey);
+    }
+    async function removeFromDetails() {
+      if (!detailItem) return;
+      await post("/api/remove", { name: detailItem.name });
+      await refreshState();
+      closeDetailsModal();
+      selectCategory(currentKey);
+    }
+
+    function openAddModal() {
+      playUiSound("select");
+      ["addName", "addCommand", "addTags", "addIcon", "addColor"].forEach((id) => (document.getElementById(id).value = ""));
+      document.getElementById("addModalBackdrop").classList.add("open");
+      setTimeout(() => document.getElementById("addName").focus(), 80);
+    }
+    function closeAddModal(e) {
+      if (!e || e.target === document.getElementById("addModalBackdrop")) {
+        document.getElementById("addModalBackdrop").classList.remove("open");
+      }
+    }
+    async function submitAddApp() {
+      const name = document.getElementById("addName").value.trim();
+      const command = document.getElementById("addCommand").value.trim();
+      if (!name || !command) { document.getElementById("addCommand").placeholder = "Required — a command or URL!"; return; }
+      const tags = document.getElementById("addTags").value.split(",").map((t) => t.trim()).filter(Boolean);
+      const icon = document.getElementById("addIcon").value.trim();
+      const color = document.getElementById("addColor").value.trim();
+      await post("/api/add", { name, command, tags, icon, color });
+      await refreshState();
+      renderNav();
+      closeAddModal();
+      selectCategory(currentKey === "stats" || currentKey === "power" ? "apps" : currentKey);
+    }
+
+    function renderThemeCards() {
+      const box = document.getElementById("themeCards");
+      box.innerHTML = "";
+      THEME_PRESETS.forEach((preset) => {
+        const card = document.createElement("button");
+        card.className = "theme-card" + (document.documentElement.dataset.theme === preset.id ? " active-card" : "");
+        card.style.cssText = "width:100%; padding:16px; border-radius:22px; border:1px solid var(--glass-border); background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:space-between; text-align:left; cursor:pointer; color:inherit; font:inherit; transition:background 0.3s ease;";
+        card.onmouseenter = () => (card.style.background = "rgba(255,255,255,0.10)");
+        card.onmouseleave = () => (card.style.background = "rgba(255,255,255,0.05)");
+        card.innerHTML = `
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="width:48px; height:48px; border-radius:16px; background:${preset.swatch}; border:1px solid rgba(255,255,255,0.20);"></div>
+            <div>
+              <div style="font-size:14px; font-weight:700;">${preset.name}</div>
+              <div style="font-size:12px; opacity:0.65;">${preset.desc}</div>
+            </div>
+          </div>
+          <span style="font-size:18px; color:var(--accent-primary);">${document.documentElement.dataset.theme === preset.id ? "✔" : ""}</span>`;
+        card.onclick = async () => { applyTheme(preset.id, true); renderThemeCards(); };
+        box.appendChild(card);
+      });
+    }
+    function openThemeDrawer() { playUiSound("select"); renderThemeCards(); document.getElementById("themeDrawerBackdrop").classList.add("open"); }
+    function closeThemeDrawer(e) {
+      if (!e || e.target === document.getElementById("themeDrawerBackdrop")) {
+        document.getElementById("themeDrawerBackdrop").classList.remove("open");
+      }
+    }
+    function applyTheme(themeId, persist) {
+      if (themeId === "obsidian") document.documentElement.removeAttribute("data-theme");
+      else document.documentElement.setAttribute("data-theme", themeId);
+      document.getElementById("themeDrawerBackdrop")?.classList.remove("open");
+      if (persist) post("/api/theme", { theme: themeId });
+    }
+    function toggleTilt() {
+      tiltEnabled = !tiltEnabled;
+      const track = document.getElementById("tiltToggle");
+      track.classList.toggle("on", tiltEnabled);
+      playUiSound("hover");
+    }
+
+    function openSearchModal() {
+      playUiSound("select");
+      document.getElementById("searchModalBackdrop").classList.add("open");
+      const input = document.getElementById("searchInput");
+      input.value = "";
+      renderSearchResults("");
+      setTimeout(() => input.focus(), 80);
+    }
+    function closeSearchModal(e) {
+      if (!e || e.target === document.getElementById("searchModalBackdrop")) {
+        document.getElementById("searchModalBackdrop").classList.remove("open");
+      }
+    }
+    function renderSearchResults(query) {
+      const box = document.getElementById("searchResults");
+      const q = query.trim().toLowerCase();
+      const all = state.entries;
+      const filtered = q ? all.filter((e) => e.name.toLowerCase().includes(q) || (e.tags || []).some((t) => t.toLowerCase().includes(q)) || (e.command || "").toLowerCase().includes(q)) : all.slice(0, 8);
+      if (!filtered.length) { box.innerHTML = '<p style="text-align:center; font-size:13px; opacity:0.6; padding:20px;">No matches. Try another name or tag.</p>'; return; }
+      box.innerHTML = "";
+      filtered.forEach((item) => {
+        const btn = document.createElement("button");
+        btn.style.cssText = "width:100%; padding:12px; border-radius:18px; background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); display:flex; align-items:center; justify-content:space-between; text-align:left; cursor:pointer; color:inherit; font:inherit; transition:background 0.25s ease;";
+        btn.onmouseenter = () => (btn.style.background = "rgba(255,255,255,0.15)");
+        btn.onmouseleave = () => (btn.style.background = "rgba(255,255,255,0.05)");
+        const accent = accentFor(item);
+        btn.innerHTML = `
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:40px; height:40px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:18px; background:${accent};">${item.icon || item.name.charAt(0).toUpperCase()}</div>
+            <div>
+              <div style="font-size:14px; font-weight:700;">${item.name}</div>
+              <div style="font-size:12px; opacity:0.65;">${(item.tags || []).join(", ") || item.command}</div>
+            </div>
+          </div>
+          <span class="font-mono-num" style="font-size:10px; font-weight:700; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,0.10);">${item.type === "url" ? "BROWSER" : "APP"}</span>`;
+        btn.onclick = () => { closeSearchModal(); triggerAppLaunch(item); };
+        box.appendChild(btn);
+      });
+    }
+
+    document.addEventListener("keydown", (e) => {
+      const anyModalOpen = document.querySelector(".backdrop-modal.open");
+      if (e.key === "Escape") { document.querySelectorAll(".backdrop-modal.open").forEach((m) => m.classList.remove("open")); return; }
+      if (anyModalOpen) return;
+      if (e.key === "/") { e.preventDefault(); openSearchModal(); return; }
+      if (e.key.toLowerCase() === "a") { e.preventDefault(); openAddModal(); return; }
+      if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+      if (e.key === "F11") return;
+      if (!renderedItems.length) return;
+      const cols = window.innerWidth >= 1280 ? 4 : window.innerWidth >= 1024 ? 3 : window.innerWidth >= 640 ? 2 : 1;
+      const count = renderedItems.length;
+      if (e.key === "ArrowRight") { e.preventDefault(); playUiSound("hover"); setFocusedCard((focusedCardIndex + 1) % count); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); playUiSound("hover"); setFocusedCard((focusedCardIndex - 1 + count) % count); }
+      else if (e.key === "ArrowDown") { e.preventDefault(); playUiSound("hover"); setFocusedCard(Math.min(focusedCardIndex + cols, count - 1)); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); playUiSound("hover"); setFocusedCard(Math.max(focusedCardIndex - cols, 0)); }
+      else if (e.key === "Enter") { e.preventDefault(); launchFocused(); }
+    });
+
+    function updateClock() {
+      const now = new Date();
+      document.getElementById("liveClock").textContent = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      document.getElementById("liveDate").textContent = now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+    }
+
+    let statsSeen = false;
+    async function pollStats() {
+      try {
+        const stats = await (await fetch("/api/stats")).json();
+        const endpoint = document.getElementById("telemetryPills");
+        if (!stats.length) return;
+        if (!statsSeen && window.innerWidth >= 1280) { statsSeen = true; endpoint.style.display = "flex"; }
+        const cpu = stats.find((s) => s[0] === "CPU load");
+        const ram = stats.find((s) => s[0] === "RAM");
+        const disk = stats.find((s) => s[0].startsWith("Disk"));
+        const pills = [cpu && ["CPU", cpu[1], cpu[2]], ram && ["RAM", ram[1], ram[2]], disk && ["Disk", disk[1], disk[2]]].filter(Boolean);
+        endpoint.innerHTML = pills
+          .map(
+            ([label, value, pct]) => `
+            <div class="glass-pill" style="border-radius:16px; padding:8px 14px; display:flex; align-items:center; gap:12px; min-width:126px;">
+              <div style="flex:1;">
+                <div class="font-mono-num" style="display:flex; justify-content:space-between; font-size:11px; font-weight:600;">
+                  <span style="opacity:0.7;">${label}</span><span>${value}</span>
+                </div>
+                <div class="progress-track" style="height:6px; margin-top:4px;"><div class="progress-fill" style="width:${pct || 0}%;"></div></div>
+              </div>
+            </div>`
+          )
+          .join("");
+      } catch (err) {}
+    }
+
+    async function refreshWeather() {
+      try {
+        weatherData = await (await fetch("/api/weather")).json();
+        if (!weatherData || weatherData.ok === false) { setWeatherChip("—", "unavailable", "weather off", "◌"); return; }
+        setWeatherChip(weatherData.text, "", weatherData.location || "your location", weatherData.glyph || "⛅");
+      } catch (err) {
+        setWeatherChip("—", "", "", "◌");
+      }
+    }
+    function setWeatherChip(temp, cond, city, icon) {
+      document.getElementById("weatherIcon").textContent = icon;
+      document.getElementById("weatherTemp").textContent = temp;
+      document.getElementById("weatherCond").textContent = cond;
+      document.getElementById("weatherCity").textContent = city;
+    }
+
+    /* Web Audio console sounds */
+    let audioCtx = null;
+    function playUiSound(type = "hover") {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        if (type === "hover") {
+          osc.type = "sine"; osc.frequency.setValueAtTime(520, now); osc.frequency.exponentialRampToValueAtTime(760, now + 0.045);
+          gain.gain.setValueAtTime(0.035, now); gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+          osc.start(now); osc.stop(now + 0.055);
+        } else if (type === "select") {
+          osc.type = "triangle"; osc.frequency.setValueAtTime(440, now); osc.frequency.exponentialRampToValueAtTime(880, now + 0.14);
+          gain.gain.setValueAtTime(0.07, now); gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+          osc.start(now); osc.stop(now + 0.19);
+        } else {
+          osc.type = "sine"; osc.frequency.setValueAtTime(220, now); osc.frequency.exponentialRampToValueAtTime(660, now + 0.35);
+          gain.gain.setValueAtTime(0.09, now); gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+          osc.start(now); osc.stop(now + 0.42);
+        }
+      } catch (e) {}
+    }
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      document.getElementById("soundIcon").textContent = soundEnabled ? "🔊" : "🔇";
+      if (soundEnabled) playUiSound("select");
+    }
+  </script>
+</body>
+</html>
