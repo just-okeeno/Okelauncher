@@ -38,11 +38,8 @@ jobs:
         run: |
           $p = Start-Process -FilePath "./dist/Okelauncher-cli.exe" -ArgumentList "--gui" -WindowStyle Hidden -PassThru
           Start-Sleep -Seconds 6
-          $alive = -not $p.HasExited
-          if ($alive) {
-            $out = & "./dist/Okelauncher-cli.exe" --list
-            if (-not ($out -join "`n").Match("Doctor")) { Write-Error "--list output missing entries" }
-          }
+          $out = & "./dist/Okelauncher-cli.exe" --list
+          if (-not (($out -join "`n") -match "Doctor")) { Write-Error "--list output missing entries" }
           if ($p.HasExited) { Write-Error "dashboard crashed on launch (console EXE --gui exited with code $($p.ExitCode))" } else { Stop-Process -Id $p.Id }
 
       - uses: actions/upload-artifact@v4
