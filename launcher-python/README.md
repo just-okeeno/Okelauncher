@@ -1,55 +1,52 @@
-# Universal launcher
+# Oke Launcher (dashboard)
 
-One searchable menu for everything you start: apps, shell commands, scripts, and URLs. Single file, no dependencies beyond Python 3.9+ and `launchers.json` next to `launch.py`.
+A TV-style dashboard launcher: big clock and date header, optional live weather, and a grid of colored app tiles you launch with Enter or double-click. Single file, no dependencies beyond Python 3.9+ and `launchers.json`.
 
-A standalone Windows EXE (no Python needed) is built automatically by the `Build Windows EXE` GitHub Actions workflow: open the [Actions tab](../../actions), pick the latest run, and download the `Okelauncher-windows-exe` artifact. It contains two files:
+## Windows EXE (no Python needed)
 
-- `Okelauncher.exe` — GUI: double-click (or pin to taskbar) and launch entries with search, double-click, or Enter. Configuration lives in `launchers.json` next to the EXE; a starter file is created on first run.
-- `Okelauncher-cli.exe` — terminal version for scripting and keyboard-only use.
+Built automatically by the `Build Windows EXE` GitHub Actions workflow: open the [Actions tab](../../actions), pick the latest **Build Windows EXE** run, and download the `Okelauncher-windows-exe` artifact. The zip contains:
 
-## GUI
+- `Okelauncher.exe` — dashboard GUI: double-click to open; search, `↑↓←→` to navigate tiles, `Enter`/double-click to launch, `Esc` to close
+- `Okelauncher-cli.exe` — terminal version for scripting and keyboard-only use
 
-`python3 launch.py --gui` opens the same dark, searchable window (Tkinter, stdlib): type to filter, `↑`/`↓` or mouse to select, `Enter`/double-click or **Run** to launch, **★ Favorite** toggles the pin, **Remove** deletes an entry (saved to `launchers.json`), `Esc` or **Close** exits. The window stays open after launching, so you can fire off several apps in a row; a status line shows what was launched.
+On first run a starter `launchers.json` is created next to the EXE; edit it to point at your real apps.
 
-## Run
-
-```bash
-python3 launch.py
-```
-
-In the picker: type to fuzzy-filter, `↑`/`↓` to select, `Enter` to run, `f` to toggle favorite (persisted), `q` to quit. Favorites float to the top and are marked `★`. If stdin or stdout is not a TTY (for example a piped run), it falls back to a numbered list.
-
-## Direct run
+## Run from source
 
 ```bash
-python3 launch.py doctor   # exact or substring name match; runs and exits
+python3 launch.py          # dashboard GUI (same as --gui)
+python3 launch.py doctor   # one-shot launch by name
 python3 launch.py --list
-python3 launch.py --add
+python3 launch.py --add    # prompts for name, command, icon glyph, tile color
 python3 launch.py --remove NAME
 python3 launch.py --config /path/to/launchers.json
 ```
 
-Tip: drop a short alias in your shell profile, e.g. `alias go='python3 /path/to/launch.py'` (or a `go.bat` wrapping the EXE), then `go` for the menu or `go github` for a one-shot launch.
+(run `python3 launch.py` with no terminal for the GUI, or in a real terminal you get the keyboard text menu)
 
 ## Config
 
-`launchers.json` (created with starter entries on first run, if missing; side-by-side by default — next to the EXE when frozen — else `~/.config/universal-launcher/launchers.json`; override with `--config` or the `UL_CONFIG` env var):
+`launchers.json` (created with starter tiles on first run, if missing; side-by-side by default — next to the EXE when frozen — else `~/.config/universal-launcher/launchers.json`; override with `--config` or the `UL_CONFIG` env var):
 
 ```json
 {
   "entries": [
+    { "name": "Netflix", "type": "url", "command": "https://www.netflix.com", "icon": "N", "color": "#e50914" },
     { "name": "VS Code", "type": "shell", "command": "code", "favorite": true },
-    { "name": "Docs", "type": "url", "command": "https://docs.example.com" },
-    { "name": "Backup home", "type": "shell", "command": "rsync -a ~/Documents/ /mnt/backup/", "cwd": "/home/you" }
-  ]
+    { "name": "Backup", "type": "shell", "command": "rsync -a ~/Documents/ /mnt/backup/", "cwd": "/home/you" }
+  ],
+  "weather": { "lat": 40.7, "lon": -74.0, "unit": "fahrenheit" }
 }
 ```
 
 - `type`: `shell` (run via the system shell, so pipes and redirects work) or `url` (opens the default browser).
 - `cwd`: optional working directory for shell entries.
-- `tags` / `favorite`: optional metadata; tags participate in fuzzy search.
+- `icon`: tile glyph — any letter, symbol, or emoji (defaults to the first letter of the name).
+- `color`: tile background as `#rrggbb` (defaults to a neutral dark surface).
+- `tags` / `favorite`: optional metadata; tags participate in search and favorites sort first.
+- `weather` (optional): enables the live weather chip in the header via the free open-meteo.com API. `unit` accepts `fahrenheit` (default) or `celsius`. Omitted → clock and date only.
 
 ## Notes
 
 - In headless environments, `url` entries follow the platform default browser (on Linux, `$BROWSER`).
-- The interactive picker needs a real terminal; it uses raw tty input on POSIX (`termios`) and Windows (`msvcrt`), with a plain numbered-list fallback otherwise.
+- The text menu needs a real terminal (raw tty input on POSIX via `termios`, Windows via `msvcrt`); without one it falls back to a numbered list.

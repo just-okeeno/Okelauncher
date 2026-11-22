@@ -1,23 +1,13 @@
 {
   "$schema": "universal-launcher/v1",
   "entries": [
-    {
-      "name": "Doctor",
-      "type": "shell",
-      "command": "echo 'environment looks good' && python3 --version",
-      "tags": ["diagnostics"],
-      "favorite": true
-    },
-    {
-      "name": "GitHub",
-      "type": "url",
-      "command": "https://github.com"
-    },
-    {
-      "name": "Local file server",
-      "type": "shell",
-      "command": "python3 -m http.server 8642 --bind 127.0.0.1",
-      "tags": ["files", "server"]
-    }
+    { "name": "Doctor", "type": "shell", "command": "echo launcher works", "icon": "D", "color": "#2d8a54", "tags": ["diagnostics"], "favorite": true },
+    { "name": "Netflix", "type": "url", "command": "https://www.netflix.com", "icon": "N", "color": "#e50914" },
+    { "name": "YouTube", "type": "url", "command": "https://www.youtube.com", "icon": "▶", "color": "#ff0000" },
+    { "name": "Prime Video", "type": "url", "command": "https://www.primevideo.com", "icon": "P", "color": "#00a8e1" },
+    { "name": "Spotify", "type": "url", "command": "https://open.spotify.com", "icon": "♫", "color": "#1db954" },
+    { "name": "Twitch", "type": "url", "command": "https://www.twitch.tv", "icon": "T", "color": "#9146ff" },
+    { "name": "GitHub", "type": "url", "command": "https://github.com", "icon": "G", "color": "#24292e" },
+    { "name": "Local file server", "type": "shell", "command": "python -m http.server 8642 --bind 127.0.0.1", "icon": "▤", "color": "#5e81ac" }
   ]
 }

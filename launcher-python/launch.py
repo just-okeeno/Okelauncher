@@ -5,7 +5,8 @@ Zero third-party dependencies. Works wherever Python 3.9+ runs.
 
 Usage:
     launch.py                 interactive picker (search, arrows, Enter to run)
-    launch.py --gui           graphical window (default when run as a windowed EXE)
+    launch.py --gui           dashboard window with clock, weather, and app tiles
+                              (default when run as a windowed EXE)
     launch.py <name>          run the first entry matching <name> and exit
     launch.py --list          list all entries
     launch.py --add           add a new entry
@@ -16,10 +17,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import subprocess
 import sys
+import threading
 import webbrowser
 from pathlib import Path
 
@@ -53,12 +56,18 @@ def default_config_path() -> Path:
 def seed_config(path: Path) -> None:
     starter = {
         "entries": [
-            {"name": "Doctor", "type": "shell", "command": "echo launcher works", "tags": ["diagnostics"], "favorite": True},
-            {"name": "GitHub", "type": "url", "command": "https://github.com"},
+            {"name": "Doctor", "type": "shell", "command": "echo launcher works", "icon": "D", "color": "#2d8a54", "tags": ["diagnostics"], "favorite": True},
+            {"name": "Netflix", "type": "url", "command": "https://www.netflix.com", "icon": "N", "color": "#e50914"},
+            {"name": "YouTube", "type": "url", "command": "https://www.youtube.com", "icon": "▶", "color": "#ff0000"},
+            {"name": "Prime Video", "type": "url", "command": "https://www.primevideo.com", "icon": "P", "color": "#00a8e1"},
+            {"name": "Spotify", "type": "url", "command": "https://open.spotify.com", "icon": "♫", "color": "#1db954"},
+            {"name": "Twitch", "type": "url", "command": "https://www.twitch.tv", "icon": "T", "color": "#9146ff"},
+            {"name": "GitHub", "type": "url", "command": "https://github.com", "icon": "G", "color": "#24292e"},
+            {"name": "Local file server", "type": "shell", "command": "python -m http.server 8642 --bind 127.0.0.1", "icon": "▤", "color": "#5e81ac"},
         ]
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(starter, indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(starter, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"created starter config at {path}")
 
 
@@ -75,10 +84,21 @@ def load_config(path: Path) -> list[dict]:
     return entries
 
 
+def load_weather_config(path: Path) -> dict | None:
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    weather = data.get("weather") if isinstance(data, dict) else None
+    if isinstance(weather, dict) and "lat" in weather and "lon" in weather:
+        return weather
+    return None
+
+
 def save_config(path: Path, entries: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"$schema": "universal-launcher/v1", "entries": entries}
-    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
 def normalize(entry: dict, index: int) -> dict:
@@ -95,6 +115,8 @@ def normalize(entry: dict, index: int) -> dict:
         "cwd": entry.get("cwd") or None,
         "tags": [str(t) for t in entry.get("tags", [])],
         "favorite": bool(entry.get("favorite", False)),
+        "icon": str(entry.get("icon") or ""),
+        "color": str(entry.get("color") or ""),
     }
 
 
@@ -248,88 +270,214 @@ def fallback_picker(entries: list[dict]) -> int:
     return 0
 
 
-def launch_gui(entries: list[dict], path: Path) -> int:
+WEATHER_CODES = {
+    0: ("Clear", "☀"),
+    1: ("Mostly clear", "🌤"),
+    2: ("Partly cloudy", "⛅"),
+    3: ("Overcast", "☁"),
+    45: ("Fog", "🌫"),
+    48: ("Fog", "🌫"),
+    51: ("Light drizzle", "🌦"),
+    53: ("Drizzle", "🌦"),
+    55: ("Heavy drizzle", "🌧"),
+    61: ("Light rain", "🌦"),
+    63: ("Rain", "🌧"),
+    65: ("Heavy rain", "🌧"),
+    71: ("Light snow", "🌨"),
+    73: ("Snow", "🌨"),
+    75: ("Heavy snow", "❄"),
+    80: ("Light showers", "🌦"),
+    81: ("Showers", "🌧"),
+    82: ("Heavy showers", "🌧"),
+    85: ("Snow showers", "🌨"),
+    86: ("Snow showers", "❄"),
+    95: ("Thunderstorm", "⛈"),
+    96: ("Thunderstorm", "⛈"),
+    99: ("Hail storm", "⛈"),
+}
+
+
+def weather_summary(temp: float, code: int, unit: str = "fahrenheit") -> str:
+    description, glyph = WEATHER_CODES.get(int(code), ("Weather", "🌡"))
+    if unit.lower().startswith("f"):
+        value = f"{round(temp)}°F"
+    else:
+        value = f"{round(temp)}°C"
+    return f"{value} {glyph} {description}"
+
+
+def fetch_weather_async(root, label, config: dict) -> None:
+    import urllib.request
+
+    lat, lon = config["lat"], config["lon"]
+    unit = str(config.get("unit", "fahrenheit"))
+    params = f"latitude={lat}&longitude={lon}&current=temperature_2m,weather_code"
+    params += f"&temperature_unit={'fahrenheit' if unit.lower().startswith('f') else 'celsius'}"
+    url = f"https://api.open-meteo.com/v1/forecast?{params}"
+
+    def work():
+        try:
+            with urllib.request.urlopen(url, timeout=6) as resp:
+                data = json.load(resp)
+            current = data.get("current", {})
+            text = weather_summary(current["temperature_2m"], current.get("weather_code", 0), unit)
+            root.after(0, lambda: label.config(text=text))
+        except Exception:
+            pass
+
+    threading.Thread(target=work, daemon=True).start()
+
+
+def launch_gui(entries: list[dict], path: Path, weather_config: dict | None = None) -> int:
     try:
         import tkinter as tk
+        from tkinter import font as tkfont
     except ImportError:
         print("tkinter is not available in this Python build; using the text menu instead")
         return interactive(entries, path)
 
-    BG, FG, DIM = "#1e1e2e", "#cdd6f4", "#6c7086"
-    SURFACE, ACCENT = "#313244", "#89b4fa"
+    BG, FG, DIM, MUTED = "#0f1115", "#e8eaed", "#9aa0a6", "#5f6368"
+    SURFACE, SURFACE_HI, ACCENT = "#1b1e26", "#262b36", "#89b4fa"
+
+    family = tkfont.nametofont("TkDefaultFont").actual("family")
+    COLS, TILE_W, TILE_H = 6, 150, 118
 
     root = tk.Tk()
-    root.title("Universal launcher")
+    root.title("Oke Launcher")
     root.configure(bg=BG)
-    root.geometry("760x440")
-    root.minsize(540, 320)
+    root.geometry("1180x720")
+    root.minsize(940, 560)
 
-    state = {"matches": list(entries)}
+    state = {"tiles": [], "index": 0, "matches": list(entries)}
 
-    status_var = tk.StringVar(value="Type to search · Enter or double-click to run · Esc to close")
+    header = tk.Frame(root, bg=BG)
+    clock_label = tk.Label(header, text="", bg=BG, fg=FG, font=(family, 40, "bold"))
+    date_label = tk.Label(header, text="", bg=BG, fg=DIM, font=(family, 13))
+    weather_label = tk.Label(header, text="", bg=BG, fg=DIM, font=(family, 13))
 
-    search_frame = tk.Frame(root, bg=BG)
+    clock_sub = tk.Frame(header, bg=BG)
+    clock_label.pack(in_=clock_sub, side="left", anchor="w")
+    date_label.pack(in_=clock_sub, side="left", anchor="s", padx=(16, 0), ipady=6)
+
+    search_container = tk.Frame(root, bg=BG)
     search_var = tk.StringVar()
     search = tk.Entry(
-        search_frame,
+        search_container,
         textvariable=search_var,
         bg=SURFACE,
         fg=FG,
         insertbackground=FG,
         relief="flat",
-        font=("TkDefaultFont", 13),
+        font=(family, 13),
     )
-    hint = tk.Label(search_frame, text="Search: name, command, or tag", bg=BG, fg=DIM, font=("TkDefaultFont", 10))
+    search_hint = tk.Label(search_container, text="Search by name, command, or tag · Enter runs · Esc closes", bg=BG, fg=MUTED, font=(family, 10))
 
-    list_frame = tk.Frame(root, bg=BG)
-    listbox = tk.Listbox(
-        list_frame,
-        bg=BG,
-        fg=FG,
-        selectbackground=SURFACE,
-        selectforeground=FG,
-        activestyle="none",
-        relief="flat",
-        highlightthickness=0,
-        font=("TkDefaultFont", 12),
-    )
-    scrollbar = tk.Scrollbar(list_frame, command=listbox.yview, bg=BG, troughcolor=BG)
-    listbox.configure(yscrollcommand=scrollbar.set)
+    canvas = tk.Canvas(root, bg=BG, bd=0, highlightthickness=0)
+    inner = tk.Frame(canvas, bg=BG)
+    scrollbar = tk.Scrollbar(root, command=canvas.yview, bg=BG, troughcolor=BG, bd=0)
+    inner_window = canvas.create_window((0, 0), window=inner, anchor="nw")
 
-    status = tk.Label(root, textvariable=status_var, bg=BG, fg=DIM, anchor="w", font=("TkDefaultFont", 10))
+    status = tk.Label(root, text="", bg=BG, fg=DIM, anchor="w", font=(family, 11))
+
+    header.pack(fill="x", padx=28, pady=(22, 4))
+    clock_sub.pack(side="left")
+    weather_label.pack(side="right")
+
+    search_container.pack(fill="x", padx=28, pady=(8, 10))
+    search.pack(fill="x", ipady=9)
+    search_hint.pack(anchor="w", pady=(6, 0))
+    scrollbar.pack(side="right", fill="y", padx=(0, 2))
+    canvas.pack(fill="both", expand=True, padx=28)
+    status.pack(fill="x", padx=28, pady=(8, 14))
+
+    def tick():
+        now = datetime.datetime.now()
+        clock_label.config(text=now.strftime("%H:%M"))
+        date_label.config(text=now.strftime("%A, %B ") + str(now.day))
+        root.after(20000, tick)
 
     def refresh(*_):
         query = search_var.get().strip()
         state["matches"] = visible_entries(entries, query)
-        listbox.delete(0, tk.END)
-        for entry in state["matches"]:
-            star = "★" if entry["favorite"] else " "
-            kind = "url" if entry["type"] == "url" else "sh "
-            listbox.insert(tk.END, f" {star} {entry['name']}   [{kind}] {entry['command']}")
-        if state["matches"]:
-            listbox.selection_set(0)
+        state["index"] = min(state["index"], max(len(state["matches"]) - 1, 0))
+        build_tiles()
+        if not state["matches"]:
+            status.config(text="no matches" if query else "add entries via launchers.json or `Okelauncher-cli --add`")
+        else:
+            status.config(text="")
 
-    def selected_entry():
-        selection = listbox.curselection()
-        if not selection or selection[0] >= len(state["matches"]):
-            return None
-        return state["matches"][selection[0]]
+    def build_tiles():
+        for child in inner.winfo_children():
+            child.destroy()
+        state["tiles"] = []
+        for i, entry in enumerate(state["matches"]):
+            color = entry["color"] or SURFACE
+            tile = tk.Frame(
+                inner,
+                bg=color,
+                width=TILE_W,
+                height=TILE_H,
+                highlightthickness=3,
+                highlightbackground=BG,
+                highlightcolor=ACCENT,
+            )
+            tile.pack_propagate(False)
+            glyph = entry["icon"] or entry["name"][:1].upper()
+            icon_label = tk.Label(tile, text=glyph, bg=color, fg="#ffffff", font=(family, 30, "bold"))
+            name_label = tk.Label(tile, text=entry["name"], bg=color, fg="#ffffff", font=(family, 11), wraplength=TILE_W - 20)
+            icon_label.pack(expand=True)
+            name_label.pack(padx=8, pady=(0, 10))
+            tile.grid(row=i // COLS, column=i % COLS, padx=9, pady=9)
+            tile.bind("<Enter>", lambda _e, idx=i: select(idx))
+            tile.bind("<Button-1>", lambda _e, idx=i: select(idx))
+            tile.bind("<Double-Button-1>", lambda _e, idx=i: launch(state["matches"][idx]))
+            state["tiles"].append((tile, color))
+        update_selection()
+        inner.update_idletasks()
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        ensure_visible(state["index"])
 
-    def move(delta):
+    def select(idx: int):
+        if not state["matches"]:
+            return
+        state["index"] = max(0, min(idx, len(state["matches"]) - 1))
+        update_selection()
+        ensure_visible(state["index"])
+
+    def update_selection():
+        for i, (tile, _color) in enumerate(state["tiles"]):
+            tile.config(highlightbackground=ACCENT if i == state["index"] else BG)
+
+    def ensure_visible(idx: int):
+        if not state["tiles"]:
+            return
+        grid_height = inner.winfo_height()
+        if grid_height <= 2 or canvas.winfo_height() <= 2:
+            return
+        tile = state["tiles"][idx][0]
+        y1, y2 = tile.winfo_y(), tile.winfo_y() + TILE_H + 18
+        top_px = canvas.yview()[0] * grid_height
+        bottom_px = canvas.yview()[1] * grid_height
+        if y1 < top_px:
+            canvas.yview_moveto(max(0, y1) / grid_height)
+        elif y2 > bottom_px:
+            canvas.yview_moveto(min(1, max(0, y2 - (bottom_px - top_px))) / grid_height)
+
+    def move(delta: int):
         if not state["matches"]:
             return "break"
-        selection = listbox.curselection()
-        index = (selection[0] if selection else 0) + delta
-        index = max(0, min(index, len(state["matches"]) - 1))
-        listbox.selection_clear(0, tk.END)
-        listbox.selection_set(index)
-        listbox.see(index)
+        index = state["index"] + delta
+        if index < 0:
+            index = len(state["matches"]) - 1
+        elif index >= len(state["matches"]):
+            index = 0
+        select(index)
         return "break"
 
     def launch(entry: dict):
         if entry["type"] == "url":
             webbrowser.open(entry["command"])
-            status_var.set(f"opened in browser: {entry['name']}")
+            status.config(text=f"opened in browser: {entry['name']}")
             return
         cwd = entry.get("cwd")
         try:
@@ -341,73 +489,71 @@ def launch_gui(entries: list[dict], path: Path) -> int:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
-            status_var.set(f"launched: {entry['name']}")
+            status.config(text=f"launched: {entry['name']}")
         except OSError as exc:
-            status_var.set(f"error: {exc}")
+            status.config(text=f"error: {exc}")
 
     def run_selected(_event=None):
-        entry = selected_entry()
-        if entry:
-            launch(entry)
+        if state["matches"]:
+            launch(state["matches"][min(state["index"], len(state["matches"]) - 1)])
         return "break"
 
-    def toggle_favorite():
-        entry = selected_entry()
-        if entry:
-            entry["favorite"] = not entry["favorite"]
-            save_config(path, entries)
-            refresh()
+    def on_key(event):
+        if event.widget is search:
+            return None
+        sym = event.keysym
+        if sym == "Escape":
+            root.destroy()
+            return "break"
+        if sym == "Up":
+            return move(-COLS)
+        if sym == "Down":
+            return move(COLS)
+        if sym == "Left":
+            return move(-1)
+        if sym == "Right":
+            return move(1)
+        if sym in ("Return", "KP_Enter"):
+            return run_selected(event)
+        if sym == "Home":
+            return select(0) or "break"
+        if sym == "End":
+            return select(len(state["matches"]) - 1) or "break"
+        if sym == "Prior":
+            canvas.yview_scroll(-1, "pages")
+            return "break"
+        if sym == "Next":
+            canvas.yview_scroll(1, "pages")
+            return "break"
+        if len(event.char) == 1 and event.char.isprintable() and event.char not in "\t":
+            search.focus_set()
+            search.insert("end", event.char)
+            return "break"
+        return None
 
-    def remove_selected():
-        entry = selected_entry()
-        if entry:
-            entries.remove(entry)
-            save_config(path, entries)
-            refresh()
+    def on_wheel(event):
+        if getattr(event, "delta", 0):
+            canvas.yview_scroll(int(-event.delta / 120), "units")
+        else:
+            canvas.yview_scroll(-1 if event.num == 4 else 1, "units")
 
-    def button(parent, text, command):
-        return tk.Button(
-            parent,
-            text=text,
-            command=command,
-            bg=SURFACE,
-            fg=FG,
-            activebackground=ACCENT,
-            activeforeground=BG,
-            relief="flat",
-            padx=14,
-            pady=4,
-            cursor="hand2",
-        )
-
-    buttons = tk.Frame(root, bg=BG)
-    run_btn = button(buttons, "Run", run_selected)
-    fav_btn = button(buttons, "★ Favorite", toggle_favorite)
-    del_btn = button(buttons, "Remove", remove_selected)
-    close_btn = button(buttons, "Close", root.destroy)
-
-    search_frame.pack(fill="x", padx=16, pady=(16, 4))
-    search.pack(fill="x", ipady=8)
-    hint.pack(anchor="w", pady=(4, 0))
-    list_frame.pack(fill="both", expand=True, padx=16, pady=8)
-    listbox.pack(side="left", fill="both", expand=True)
-    scrollbar.pack(side="right", fill="y")
-    buttons.pack(fill="x", padx=16, pady=(0, 4))
-    for btn in (run_btn, fav_btn, del_btn, close_btn):
-        btn.pack(side="left", padx=(0, 8), pady=(0, 4))
-    status.pack(fill="x", padx=16, pady=(0, 12))
-
+    root.bind("<Key>", on_key)
     search.bind("<Return>", run_selected)
-    search.bind("<Down>", lambda _e: move(1))
-    search.bind("<Up>", lambda _e: move(-1))
+    search.bind("<Down>", lambda _e: move(COLS))
+    search.bind("<Up>", lambda _e: move(-COLS))
+    search.bind("<Escape>", lambda _e: root.destroy())
     search_var.trace_add("write", refresh)
-    listbox.bind("<Return>", run_selected)
-    listbox.bind("<Double-Button-1>", run_selected)
-    listbox.bind("<Down>", lambda _e: move(1))
-    listbox.bind("<Up>", lambda _e: move(-1))
-    root.bind("<Escape>", lambda _e: root.destroy())
+    canvas.bind_all("<MouseWheel>", on_wheel)
+    canvas.bind_all("<Button-4>", on_wheel)
+    canvas.bind_all("<Button-5>", on_wheel)
+    canvas.bind("<Configure>", lambda _e: canvas.itemconfigure(inner_window, width=canvas.winfo_width()))
+    inner.bind("<Configure>", lambda _e: canvas.configure(scrollregion=canvas.bbox("all")))
+
     search.focus_set()
     refresh()
+    tick()
+    if weather_config:
+        fetch_weather_async(root, weather_label, weather_config)
     root.mainloop()
     return 0
 
@@ -447,7 +593,12 @@ def cmd_add(entries: list[dict], path: Path) -> int:
     etype = input("type [shell/url] (enter = auto): ").strip().lower()
     cwd = input("working directory (enter = inherit): ").strip() or None
     tags = [t.strip() for t in input("tags, comma-separated (enter = none): ").split(",") if t.strip()]
-    entry = normalize({"name": name, "command": command, "type": etype, "cwd": cwd, "tags": tags}, len(entries))
+    icon = input("tile glyph, e.g. a letter or emoji (enter = first letter): ").strip()
+    color = input("tile color as #rrggbb (enter = default): ").strip()
+    entry = normalize(
+        {"name": name, "command": command, "type": etype, "cwd": cwd, "tags": tags, "icon": icon, "color": color},
+        len(entries),
+    )
     entries.append(entry)
     save_config(path, entries)
     print(f"saved {entry['name']} to {path}")
@@ -472,7 +623,7 @@ def main() -> int:
     parser.add_argument("--config", type=Path, default=None, help="config file (default: launchers.json beside script, else ~/.config/universal-launcher/launchers.json)")
     parser.add_argument("--list", action="store_true", help="list entries")
     parser.add_argument("--add", action="store_true", help="add an entry interactively")
-    parser.add_argument("--gui", action="store_true", help="open the graphical window instead of the text menu")
+    parser.add_argument("--gui", action="store_true", help="open the dashboard window (default for the windowed EXE)")
     parser.add_argument("--remove", metavar="NAME", help="remove an entry")
     args = parser.parse_args()
 
@@ -496,7 +647,7 @@ def main() -> int:
             sys.exit(f"error: no entry matches {args.name!r}")
         return run_entry(entry)
     if args.gui or (getattr(sys, "frozen", False) and windowed):
-        return launch_gui(entries, path)
+        return launch_gui(entries, path, load_weather_config(path))
     return interactive(entries, path)
 
 
