@@ -8,7 +8,6 @@
   .\build.ps1 -Config Debug   # debug build
   .\build.ps1 -Clean -Build   # from scratch
   .\build.ps1 -Package        # zip the exe into dist\OkeLauncher.zip
-  .\build.ps1 -GenerateIcon   # regenerate resources\app.ico (needs Python 3)
 #>
 [CmdletBinding()]
 param(
@@ -30,6 +29,15 @@ if (-not $Clean -and -not $Package -and -not $GenerateIcon) {
     $Build = $true
 }
 
+function Find-VSInstallPath {
+    $vswhere = Join-Path "${env:ProgramFiles(x86)}" 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (Test-Path $vswhere) {
+        $p = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null
+        if ($p) { return ($p | Select-Object -First 1) }
+    }
+    return $null
+}
+
 if ($GenerateIcon) {
     Write-Host '>> Generating icon...' -ForegroundColor Cyan
     python (Join-Path $Root 'tools\make_icon.py')
@@ -41,8 +49,21 @@ if ($Clean -and (Test-Path $BuildDir)) {
 }
 
 if ($Build) {
+    $vsPath = Find-VSInstallPath
+    $clEnv  = Get-Command cl.exe -ErrorAction SilentlyContinue
+    $genArgs = @()
+    if ($vsPath) {
+        if ($vsPath -like '*2022*')     { $genArgs = @('-G', 'Visual Studio 17 2022', '-A', 'x64') }
+        elseif ($vsPath -like '*2019*') { $genArgs = @('-G', 'Visual Studio 16 2019', '-A', 'x64') }
+        elseif ($vsPath -like '*2017*') { $genArgs = @('-G', 'Visual Studio 15 2017', '-A', 'x64') }
+        Write-Host ">> Found Visual Studio: $vsPath" -ForegroundColor DarkGray
+    }
+    elseif (-not $clEnv) {
+        throw 'No C++ toolchain found. Install VS 2022 Build Tools with the C++ workload, then run this script again:  winget install --id Microsoft.VisualStudio.2022.BuildTools -e --override "--quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"'
+    }
+
     Write-Host ">> Configuring ($Config)..." -ForegroundColor Cyan
-    cmake -S $Root -B $BuildDir
+    cmake -S $Root -B $BuildDir @genArgs
     if ($LASTEXITCODE -ne 0) { throw "CMake configure failed ($LASTEXITCODE)" }
 
     Write-Host '>> Building...' -ForegroundColor Cyan
