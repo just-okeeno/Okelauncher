@@ -28,6 +28,11 @@ import sys
 import threading
 import urllib.parse
 import webbrowser
+
+try:
+    import chrome_bridge
+except ImportError:
+    chrome_bridge = None
 from pathlib import Path
 
 try:
@@ -898,6 +903,11 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
                 self.wfile.write(html)
             elif route == "/api/state":
                 self._json(state_snapshot())
+            elif route == "/api/chrome/status":
+                if chrome_bridge is None:
+                    self._json({"supported": False, "chrome_running": False, "installed": False, "error": "bridge missing"})
+                else:
+                    self._json(chrome_bridge.chrome_status())
             elif route == "/api/scan-status":
                 with lock:
                     scan = ui_state["scan"]
@@ -1115,6 +1125,21 @@ def launch_dashboard(entries: list[dict], path: Path, weather_config: dict | Non
                     )
                     persist()
                 self._json({"ok": True, "added": True})
+            elif route == "/api/chrome/nav":
+                if chrome_bridge is None:
+                    self._json({"ok": False, "error": "bridge missing"})
+                else:
+                    self._json(chrome_bridge.navigate(str(body.get("action", ""))))
+            elif route == "/api/chrome/open":
+                if chrome_bridge is None:
+                    self._json({"ok": False, "error": "bridge missing"})
+                else:
+                    self._json(chrome_bridge.open_chrome(str(body.get("url", "")), str(body.get("lang", ""))))
+            elif route == "/api/chrome/lang":
+                if chrome_bridge is None:
+                    self._json({"ok": False, "error": "bridge missing"})
+                else:
+                    self._json(chrome_bridge.set_language(str(body.get("lang", ""))))
             elif route == "/api/store/download":
                 item = next((s for s in STORE_CATALOG if s["id"] == body.get("id")), None)
                 if item is None:

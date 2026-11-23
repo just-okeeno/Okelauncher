@@ -21,6 +21,6 @@ else()
 endif()
 
 target_link_libraries(OkeLauncher PRIVATE
-    user32 gdi32 shell32 ole32
+    user32 gdi32 shell32 ole32 oleaut32
     d2d1 dwrite windowscodecs dwmapi
 )

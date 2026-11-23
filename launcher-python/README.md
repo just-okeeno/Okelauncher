@@ -19,7 +19,8 @@ First run creates a starter config with a few example tiles (Netflix, Spotify, Y
 - **Left floating nav rail** with a spring-animated active pill: Home, All apps, Favourites, System monitor, Photos & Videos, Oke Store, all 20 categories, and Power & Exit.
 - **User profiles with PIN** — sign in as different users on the lock screen. PINs are stored salted+hashed (SHA-256, never in plain text); profiles without a PIN unlock instantly. Each profile keeps its own recently-played history.
 - **Photos & Videos (media library)** — Oke OS scans your Pictures, Videos, Downloads, Desktop, Music and OneDrive folders for pictures and videos and organises them by folder. Browse folder cards, then view photos in a lightbox, play MP4/WebM/MOV files in an in-page video player, or open exotic formats in your system player. Rescan button included (newest 4000 files, depth 5).
-- **Oke Browser** — a chrome-style browser overlay inside the OS (see above).
+- **Oke Browser** — a chrome-style browser overlay inside the OS: address bar (URL or search), back/forward/reload/home buttons that send commands into the embedded page, and its own settings (language applied to the current page — Google `?hl=es`, Wikipedia `es.wikipedia.org` — plus zoom and a custom homepage, saved between sessions).
+- **Real Chrome control (Windows)** — the Browser settings panel can drive the actual running Chrome window: back/forward/reload arrive in Chrome as `WM_APPCOMMAND`, the chosen language is written into Chrome's `Local State` profile (`intl.app_locale`), and "open in real Chrome" launches `chrome.exe --lang=es <url>`. Status pill shows Chrome running/installed/not found; on other platforms it reports "Windows only".
 - **Oke Store** — a built-in package installer with 16 popular apps & services (Netflix, Spotify, Steam, Discord, VS Code …), each shown with its original brand logo. "＋ Add to Oke OS" pins the web app to your dashboard instantly; "⬇ Get installer" opens the official download page.
 - **Hero banner** that crossfades to the currently focused tile, with a glowing **Launch Now** button.
 - **Cards grid** with console focus rings, 3D perspective tilt (toggleable), click ripples and staggered entrance animations.
@@ -107,6 +108,10 @@ launch.py --config PATH   use a custom config file
 ```
 
 By default the config lives beside the script (next to the EXE when frozen), falling back to `~/.config/universal-launcher/launchers.json`. Visit the printed `http://127.0.0.1:<port>/` URL if your browser does not open itself; stop the launcher with Ctrl+C or Power & Exit > Close launcher.
+
+### Native C++ side
+
+`src/ChromeOverlayBridge.hpp` ships the same control for the native Direct2D launcher: `Init()` (UI Automation), `NavigateBack/Forward/Reload()` (UIA invoke with `WM_APPCOMMAND` fallback), `SyncOverlayToChrome()` (topmost overlay bar aligned to Chrome's window rect), `SetChromeLanguage()` and `LaunchChromeWithLang()`. Link with `ole32 oleaut32 user32 shell32`.
 
 ## Building the EXE locally
 

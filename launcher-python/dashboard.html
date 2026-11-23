@@ -726,6 +726,15 @@
           </div>
           <button class="browser-apply" onclick="applyBrowserSettings()">Apply &amp; reload page</button>
           <button class="browser-apply" style="background:rgba(255,255,255,0.12); border-color:var(--glass-border);" onclick="browserOpenSystem()">Open current page in system browser</button>
+          <h4 style="margin-top:4px;">Control the real Chrome window</h4>
+          <span id="chromeStatusPill" style="font-size:11px; font-weight:700; opacity:0.85;">Checking Chrome…</span>
+          <div style="display:flex; gap:8px;">
+            <button class="browser-btn" style="flex:1;" onclick="chromeNav('back')" title="Chrome back">&#9664;</button>
+            <button class="browser-btn" style="flex:1;" onclick="chromeNav('forward')" title="Chrome forward">&#9654;</button>
+            <button class="browser-btn" style="flex:1;" onclick="chromeNav('reload')" title="Chrome reload">&#10227;</button>
+          </div>
+          <button class="browser-apply" onclick="chromeLaunchWithLang()">Open current page in real Chrome (with language)</button>
+          <p id="chromeNote" style="font-size:10.5px; opacity:0.55; margin:0; line-height:1.5;">Back / forward / reload are sent to the actual running Chrome window (WM_APPCOMMAND). Language is written into Chrome's profile and used when launching it.</p>
         </div>
       </div>
     </div>
@@ -1850,7 +1859,46 @@
             document.getElementById("bsZoom").value = Math.round(browserSettings.zoom * 100);
             document.getElementById("bsZoomVal").textContent = Math.round(browserSettings.zoom * 100) + "%";
             document.getElementById("bsHome").value = browserSettings.home;
+            refreshChromeStatus();
           }
+        }
+
+        /* ---- Real Chrome bridge ---- */
+        async function refreshChromeStatus() {
+          const pill = document.getElementById("chromeStatusPill");
+          try {
+            const status = await (await fetch("/api/chrome/status")).json();
+            if (!status.supported) { pill.textContent = "Real Chrome control: Windows only"; return; }
+            pill.textContent = status.chrome_running
+              ? "● Real Chrome is running — control buttons are live"
+              : (status.installed ? "○ Chrome installed — open it with the button below" : "✕ Chrome not found on this PC");
+          } catch (err) { pill.textContent = "Real Chrome control unavailable"; }
+        }
+
+        async function chromeNav(action) {
+          const arrow = { back: "◀ back", forward: "▶ forward", reload: "⟳ reload" }[action] || action;
+          const res = await post("/api/chrome/nav", { action: action });
+          showBrowserNote(res.ok ? "Sent " + arrow + " to real Chrome ✓" : (res.error || "Chrome not reachable"));
+          refreshChromeStatus();
+        }
+
+        async function chromeLaunchWithLang() {
+          const lang = (document.getElementById("bsLang").value || "") === "auto" ? "" : (document.getElementById("bsLang").value || "");
+          const target = browserCurrent || browserSettings.home;
+          const res = await post("/api/chrome/open", { url: target, lang: lang });
+          showBrowserNote(res.ok
+            ? "Opened in real Chrome" + (lang ? " with " + lang.toUpperCase() + " language" : "") + " ✓"
+            : (res.error || "Could not launch Chrome"));
+          refreshChromeStatus();
+        }
+
+        async function chromeSendLang(lang) {
+          if (!lang || lang === "auto") return "";
+          try {
+            const res = await post("/api/chrome/lang", { lang: lang });
+            if (res.ok) return " — language written into Chrome's profile (restart Chrome to apply)";
+          } catch (err) {}
+          return "";
         }
     
         function urlWithLang(urlText, lang) {
@@ -1876,7 +1924,7 @@
           }
         }
     
-        function applyBrowserSettings() {
+        async function applyBrowserSettings() {
           const lang = document.getElementById("bsLang").value || "auto";
           const zoomPct = +document.getElementById("bsZoom").value || 100;
           const home = normalizeBrowserUrl(document.getElementById("bsHome").value) || browserSettings.home;
@@ -1884,16 +1932,17 @@
           try { localStorage.setItem("oke_browser", JSON.stringify(browserSettings)); } catch (err) {}
           applyBrowserZoom();
           document.getElementById("browserSettings").classList.remove("open");
+          const chromeNote = await chromeSendLang(lang);
           if (browserCurrent) {
             const mapped = urlWithLang(browserCurrent, lang);
             if (mapped) {
               navigateBrowser(mapped);
-              showBrowserNote("Language sent to the page ✓ (" + lang.toUpperCase() + ")");
+              showBrowserNote("Language sent to the page ✓ (" + lang.toUpperCase() + ")" + chromeNote);
             } else {
-              showBrowserNote("Saved — pages will use " + lang.toUpperCase() + " where the site supports it");
+              showBrowserNote("Saved — pages will use " + lang.toUpperCase() + " where the site supports it" + chromeNote);
             }
           } else {
-            showBrowserNote("Settings saved ✓");
+            showBrowserNote("Settings saved ✓" + chromeNote);
           }
         }
     
