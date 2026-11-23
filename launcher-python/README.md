@@ -19,7 +19,8 @@ First run creates a starter config with a few example tiles (Netflix, Spotify, Y
 - **Left floating nav rail** with a spring-animated active pill: Home, All apps, Favourites, System monitor, Photos & Videos, Oke Store, all 20 categories, and Power & Exit.
 - **User profiles with PIN** — sign in as different users on the lock screen. PINs are stored salted+hashed (SHA-256, never in plain text); profiles without a PIN unlock instantly. Each profile keeps its own recently-played history.
 - **Photos & Videos (media library)** — Oke OS scans your Pictures, Videos, Downloads, Desktop, Music and OneDrive folders for pictures and videos and organises them by folder. Browse folder cards, then view photos in a lightbox, play MP4/WebM/MOV files in an in-page video player, or open exotic formats in your system player. Rescan button included (newest 4000 files, depth 5).
-- **Oke Store** — a built-in package installer with 16 popular apps & services (Netflix, Spotify, Steam, Discord, VS Code …). "＋ Add to Oke OS" pins the web app to your dashboard instantly; "⬇ Get installer" opens the official download page.
+- **Oke Browser** — a chrome-style browser overlay inside the OS (see above).
+- **Oke Store** — a built-in package installer with 16 popular apps & services (Netflix, Spotify, Steam, Discord, VS Code …), each shown with its original brand logo. "＋ Add to Oke OS" pins the web app to your dashboard instantly; "⬇ Get installer" opens the official download page.
 - **Hero banner** that crossfades to the currently focused tile, with a glowing **Launch Now** button.
 - **Cards grid** with console focus rings, 3D perspective tilt (toggleable), click ripples and staggered entrance animations.
 - **Launch splash** — cinematic progress modal while the real app/command starts.
@@ -118,6 +119,6 @@ Or let GitHub Actions do it: push to this branch and download the `Okelauncher-w
 
 ## Current dashboard scope vs. ideas inbox
 
-Included: 20 categories, glass nav rail with spring pill, recently played (per profile), favourites, quick launch, live search, weather chip, live CPU/RAM/disk telemetry + system monitor page, 4 themes with persistence, 3D tilt + ripples + ambient orbs, launch splash, boot splash, user profiles with PIN lock screen, Oke Store package installer, automatic PC media scan with photo/video viewer, add/favourite/remove management, sleep/restart/shutdown, terminal fallback menu.
+Included: 20 categories, glass nav rail with spring pill, recently played (per profile), favourites, quick launch, live search, weather chip, live CPU/RAM/disk telemetry + system monitor page, 4 themes with persistence, 3D tilt + ripples + ambient orbs, launch splash, boot splash, user profiles with PIN lock screen, Oke Browser (chrome-style embedded browser), Oke Store package installer, automatic PC media scan with photo/video viewer, add/favourite/remove management, sleep/restart/shutdown, terminal fallback menu.
 
 Not implemented yet (possible future work): custom media-scan folders, resume-watching positions, screen mirroring/casting, phone remote control, voice commands, screensaver mode, custom background images, GPU statistics.

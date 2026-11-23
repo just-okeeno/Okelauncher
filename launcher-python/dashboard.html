@@ -281,6 +281,106 @@
     color: #fff; text-align: center; pointer-events: none;
     background: linear-gradient(transparent, rgba(2,6,23,0.8));
   }
+
+  /* --- Oke Browser --- */
+  .browser-shell {
+    position: fixed; top: 3vh; left: 3vw; bottom: 3vh; right: 3vw; z-index: 72;
+    border-radius: 26px; overflow: hidden; display: flex; flex-direction: column;
+    background: rgba(10, 14, 26, 0.92); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px);
+    box-shadow: 0 50px 110px -20px rgba(0,0,0,0.8);
+  }
+  .browser-chrome {
+    display: flex; align-items: center; gap: 8px; padding: 12px 14px;
+    border-bottom: 1px solid var(--glass-border); background: rgba(255,255,255,0.04); flex: none;
+  }
+  .browser-btn {
+    width: 36px; height: 36px; border-radius: 999px; border: 1px solid var(--glass-border);
+    background: var(--glass-surface); color: inherit; font: inherit; font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: background 0.15s, transform 0.15s;
+    flex: none;
+  }
+  .browser-btn:hover { background: rgba(255,255,255,0.18); transform: scale(1.06); }
+  .browser-address {
+    flex: 1; display: flex; align-items: center; gap: 8px; padding: 4px 8px 4px 16px;
+    border-radius: 999px; background: rgba(0,0,0,0.35); border: 1px solid var(--glass-border);
+  }
+  .browser-address input {
+    flex: 1; background: transparent; border: none; outline: none; color: inherit;
+    font: inherit; font-size: 13.5px; padding: 7px 0;
+  }
+  .browser-address .browser-go {
+    border: none; background: rgba(56,189,248,0.25); color: inherit; font: inherit; font-weight: 700;
+    font-size: 12px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
+  }
+  .browser-host { font-size: 11px; opacity: 0.7; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; flex: none; }
+  .browser-viewport { flex: 1; position: relative; background: #fff; overflow: hidden; }
+  .browser-viewport iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; transform-origin: top left; }
+  .browser-home {
+    position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 30px; text-align: center;
+    background: radial-gradient(circle at 50% 0%, rgba(56,189,248,0.16), transparent 55%), #0b1120; color: #e2e8f0;
+  }
+  .browser-home h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .browser-home .browser-bigsearch {
+    width: min(620px, 92%); display: flex; align-items: center; gap: 10px; padding: 4px 6px 4px 20px;
+    border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  }
+  .browser-home .browser-bigsearch input {
+    flex: 1; background: transparent; border: none; outline: none; color: inherit; font: inherit; font-size: 15px; padding: 12px 0;
+  }
+  .browser-home .browser-bigsearch .browser-go {
+    border: none; cursor: pointer; font: inherit; font-weight: 700; font-size: 13px;
+    color: #fff; padding: 11px 22px; border-radius: 999px;
+    background: linear-gradient(135deg, var(--accent-primary), transparent); background-color: rgba(56,189,248,0.45);
+  }
+  .browser-quickstrip { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 720px; }
+  .browser-quickstrip button {
+    display: flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--glass-border); background: var(--glass-surface); color: inherit;
+    font: inherit; font-size: 12.5px; font-weight: 600;
+  }
+  .browser-quickstrip button:hover { background: rgba(255,255,255,0.18); transform: translateY(-2px); }
+  .browser-quickstrip img { width: 18px; height: 18px; border-radius: 4px; }
+  .browser-note {
+    position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 5;
+    padding: 9px 20px; border-radius: 999px; font-size: 12px; font-weight: 600; color: #fff;
+    background: rgba(4,6,12,0.8); border: 1px solid var(--glass-border);
+    opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; max-width: 92%;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .browser-note.show { opacity: 1; }
+  .browser-settings {
+    position: absolute; top: 64px; right: 16px; z-index: 6; width: 290px; border-radius: 20px;
+    padding: 18px; display: none; flex-direction: column; gap: 14px;
+    background: rgba(10,14,26,0.96); border: 1px solid var(--glass-border);
+    box-shadow: 0 30px 70px -18px rgba(0,0,0,0.75); color: #e2e8f0;
+  }
+  .browser-settings.open { display: flex; }
+  .browser-settings h4 { margin: 0; font-size: 13px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.85; }
+  .browser-settings label { font-size: 11.5px; font-weight: 700; opacity: 0.75; display: block; margin-bottom: 5px; }
+  .browser-settings select, .browser-settings input[type="text"] {
+    width: 100%; font: inherit; font-size: 13px; color: inherit; padding: 8px 10px; border-radius: 12px;
+    background: rgba(255,255,255,0.08); border: 1px solid var(--glass-border); outline: none;
+  }
+  .browser-settings select option { color: #0b1120; }
+  .browser-settings input[type="range"] { width: 100%; accent-color: #38bdf8; }
+  .browser-settings .browser-apply {
+    border: 1px solid var(--accent-primary); cursor: pointer; font: inherit; font-weight: 700; font-size: 12px; color: #fff;
+    padding: 9px 0; border-radius: 12px; background: rgba(56,189,248,0.35);
+  }
+  .browser-tabpage-card { cursor: pointer; display: flex; flex-direction: column; gap: 12px; padding: 26px; }
+  .browser-bookmark-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; grid-column: 1 / -1; }
+  .browser-bookmark {
+    display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 20px; cursor: pointer;
+    border: 1px solid var(--glass-border); background: var(--glass-surface); text-align: left;
+    color: inherit; font: inherit; transition: transform 0.25s var(--ease-out-expo), background 0.2s;
+  }
+  .browser-bookmark:hover { transform: translateY(-4px) scale(1.02); background: rgba(255,255,255,0.14); }
+  .browser-bookmark img { width: 28px; height: 28px; border-radius: 8px; flex: none; }
+  .browser-bookmark .bm-name { font-size: 14px; font-weight: 700; }
+  .browser-bookmark .bm-url { font-size: 11px; opacity: 0.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -570,6 +670,67 @@
     </div>
   </div>
 
+
+  <div id="browserBackdrop" class="backdrop-modal" style="z-index:72;">
+    <div class="browser-shell modal-pop" id="browserShell">
+      <div class="browser-chrome">
+        <button class="browser-btn" onclick="browserNav('back')" title="Back">&#9664;</button>
+        <button class="browser-btn" onclick="browserNav('forward')" title="Forward">&#9654;</button>
+        <button class="browser-btn" onclick="browserReload()" title="Reload">&#10227;</button>
+        <button class="browser-btn" onclick="browserGoHome()" title="Home page">&#8962;</button>
+        <div class="browser-address">
+          <span id="browserLock" title="Connection">&#128274;</span>
+          <input id="browserAddress" placeholder="Search or type a URL" spellcheck="false" onkeydown="if (event.key === 'Enter') navigateBrowser(this.value)">
+          <button class="browser-go" onclick="navigateBrowser(document.getElementById('browserAddress').value)">&#8594; Go</button>
+        </div>
+        <span id="browserHost" class="browser-host">new tab</span>
+        <button class="browser-btn" onclick="toggleBrowserSettings()" title="Browser settings">&#9881;</button>
+        <button class="browser-btn" onclick="closeBrowser()" title="Close Oke Browser">&#10005;</button>
+      </div>
+      <div class="browser-viewport">
+        <iframe id="browserFrame" title="Oke Browser page"></iframe>
+        <div id="browserHome" class="browser-home">
+          <h2>Oke Browser</h2>
+          <div class="browser-bigsearch">
+            <span>&#127760;</span>
+            <input id="browserHomeSearch" placeholder="Search the web with Oke OS" spellcheck="false" onkeydown="if (event.key === 'Enter') navigateBrowser(this.value)">
+            <button class="browser-go" onclick="navigateBrowser(document.getElementById('browserHomeSearch').value)">&#8594;</button>
+          </div>
+          <div id="browserHomeQuick" class="browser-quickstrip"></div>
+          <p style="font-size:11.5px; opacity:0.55; max-width:520px; margin:0;">
+            Tip: some sites (like Google services and Netflix) refuse to show inside any embedded browser &mdash;
+            open those with the settings menu &rarr; "Open in system browser".</p>
+        </div>
+        <div id="browserNote" class="browser-note"></div>
+        <div id="browserSettings" class="browser-settings">
+          <h4>Oke Browser settings</h4>
+          <div>
+            <label for="bsLang">Language sent to pages</label>
+            <select id="bsLang">
+              <option value="auto">Automatic (site default)</option>
+              <option value="en">English</option>
+              <option value="es">Espa&ntilde;ol</option>
+              <option value="fr">Fran&ccedil;ais</option>
+              <option value="de">Deutsch</option>
+              <option value="pt">Portugu&ecirc;s</option>
+              <option value="nl">Nederlands</option>
+            </select>
+          </div>
+          <div>
+            <label for="bsZoom">Page zoom <span id="bsZoomVal"></span></label>
+            <input type="range" id="bsZoom" min="50" max="150" step="5">
+          </div>
+          <div>
+            <label for="bsHome">Home page</label>
+            <input type="text" id="bsHome" placeholder="https://www.wikipedia.org">
+          </div>
+          <button class="browser-apply" onclick="applyBrowserSettings()">Apply &amp; reload page</button>
+          <button class="browser-apply" style="background:rgba(255,255,255,0.12); border-color:var(--glass-border);" onclick="browserOpenSystem()">Open current page in system browser</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const THEME_PRESETS = [
       { id: "obsidian", name: "Midnight Obsidian", desc: "Deep console slate with electric cyan glow", swatch: "linear-gradient(135deg,#0f172a,#38bdf8,#6366f1)" },
@@ -760,6 +921,7 @@
         { key: "stats", glyph: "📊", title: "System monitor" },
         { key: "media", glyph: "🗂", title: "Photos & Videos" },
         { key: "store", glyph: "🛍", title: "Oke Store" },
+        { key: "browser", glyph: "🌐", title: "Oke Browser" },
       ];
       state.categories.forEach((cat, i) => items.push({ key: "cat:" + i, glyph: cat.glyph || "▸", title: cat.title, special: cat.special }));
       items.push({ key: "power", glyph: "⏻", title: "Power & Exit" });
@@ -815,18 +977,21 @@
         subheading = "Pictures and videos on this PC, organised by folder";
       } else if (key === "store") {
         subheading = "Popular apps and services, one click to install";
+      } else if (key === "browser") {
+        subheading = "Browse the web inside Oke OS with its own chrome";
       } else {
         const cat = key.startsWith("cat:") ? state.categories[+key.slice(4)] : null;
         subheading = cat ? (cat.desc || "") : "Every entry in launchers.json";
       }
       document.getElementById("sectionHeading").textContent =
-        isHome ? "Jump Back In" : key === "apps" ? "Applications" : key === "favorites" ? "Favourites" : key === "media" ? "Photos & Videos" : key === "store" ? "Oke Store" : key === "stats" ? "System Monitor" : key === "power" ? "Power & Exit" : item.title;
+        isHome ? "Jump Back In" : key === "apps" ? "Applications" : key === "favorites" ? "Favourites" : key === "media" ? "Photos & Videos" : key === "store" ? "Oke Store" : key === "browser" ? "Oke Browser" : key === "stats" ? "System Monitor" : key === "power" ? "Power & Exit" : item.title;
       document.getElementById("sectionSubheading").textContent = subheading;
 
       if (key === "power") { renderPower(); return; }
       if (key === "stats") { renderStatsView(); return; }
       if (key === "media") { renderMediaPage(); return; }
       if (key === "store") { renderStorePage(); return; }
+      if (key === "browser") { renderBrowserPage(); return; }
       document.getElementById("itemCountBadge").textContent = `${items.length} Items`;
       renderCards(items, isHome);
       if (!items.length) renderEmptyNote(key);
@@ -1203,7 +1368,7 @@
         return;
       }
       const anyModalOpen = document.querySelector(".backdrop-modal.open");
-      if (e.key === "Escape") { closeLightbox(); document.querySelectorAll(".backdrop-modal.open").forEach((m) => m.classList.remove("open")); return; }
+      if (e.key === "Escape") { closeLightbox(); closeBrowser(); document.querySelectorAll(".backdrop-modal.open").forEach((m) => m.classList.remove("open")); return; }
       if (anyModalOpen) return;
       if (e.key === "/") { e.preventDefault(); openSearchModal(); return; }
       if (e.key.toLowerCase() === "a") { e.preventDefault(); openAddModal(); return; }
@@ -1547,6 +1712,216 @@
           await post("/api/store/download", { id: id });
           if (btn) setTimeout(() => { btn.textContent = label || "⬇ Get installer"; btn.disabled = false; }, 1500);
         }
+    
+      
+        /* ================= Oke Browser ================= */
+        let browserSettings = { lang: "auto", zoom: 1, home: "https://www.wikipedia.org" };
+        try { browserSettings = Object.assign(browserSettings, JSON.parse(localStorage.getItem("oke_browser") || "{}")); } catch (err) {}
+        const BROWSER_QUICK = [
+          { name: "Google", url: "https://www.google.com", domain: "google.com" },
+          { name: "YouTube", url: "https://www.youtube.com", domain: "youtube.com" },
+          { name: "Wikipedia", url: "https://www.wikipedia.org", domain: "wikipedia.org" },
+          { name: "GitHub", url: "https://github.com", domain: "github.com" },
+          { name: "Reddit", url: "https://www.reddit.com", domain: "reddit.com" },
+          { name: "Netflix", url: "https://www.netflix.com", domain: "netflix.com" },
+          { name: "MDN Docs", url: "https://developer.mozilla.org", domain: "developer.mozilla.org" },
+          { name: "Archive.org", url: "https://archive.org", domain: "archive.org" },
+        ];
+    
+        function faviconFor(domain) { return "https://www.google.com/s2/favicons?domain=" + domain + "&sz=64"; }
+    
+        function normalizeBrowserUrl(text) {
+          const raw = (text || "").trim();
+          if (!raw) return "";
+          if (/^https?:\/\//i.test(raw)) return raw;
+          if (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(raw)) return "https://" + raw;
+          return "https://www.google.com/search?q=" + encodeURIComponent(raw);
+        }
+    
+        function renderBrowserPage() {
+          renderedItems = [];
+          const grid = document.getElementById("cardsGrid");
+          grid.innerHTML = "";
+          document.getElementById("itemCountBadge").textContent = "Web";
+          const open = document.createElement("div");
+          open.className = "glass-panel card-stagger launcher-card browser-tabpage-card";
+          open.innerHTML = `
+            <div style="width:56px; height:56px; border-radius:20px; display:flex; align-items:center; justify-content:center; font-size:28px; background: rgba(56,189,248,0.22); box-shadow: 0 12px 26px -8px rgba(56,189,248,0.6);">🌐</div>
+            <h3 style="margin:0; font-size:18px; font-weight:800;">Open Oke Browser</h3>
+            <p style="margin:0; font-size:12.5px; opacity:0.7; line-height:1.6;">A full browser experience inside Oke OS — address bar, back / forward / reload / home buttons and its own settings, just like Chrome but wrapped in the OS glass.</p>`;
+          open.addEventListener("click", () => openBrowser(""));
+          grid.appendChild(open);
+    
+          const bookmarkWrap = document.createElement("div");
+          bookmarkWrap.className = "browser-bookmark-grid";
+          BROWSER_QUICK.forEach((b) => {
+            const tile = document.createElement("button");
+            tile.className = "browser-bookmark card-stagger";
+            tile.innerHTML = '<img loading="lazy" src="' + faviconFor(b.domain) + '" alt=""><span style="min-width:0;"><span class="bm-name">' + escapeText(b.name) + '</span><br><span class="bm-url">' + escapeText(b.url.replace("https://", "")) + "</span></span>";
+            tile.addEventListener("click", () => openBrowser(b.url));
+            bookmarkWrap.appendChild(tile);
+          });
+          grid.appendChild(bookmarkWrap);
+        }
+    
+        function renderBrowserQuickstrip() {
+          const strip = document.getElementById("browserHomeQuick");
+          strip.innerHTML = "";
+          BROWSER_QUICK.forEach((b) => {
+            const btn = document.createElement("button");
+            const img = document.createElement("img");
+            img.src = faviconFor(b.domain);
+            img.alt = "";
+            const label = document.createElement("span");
+            label.textContent = b.name;
+            btn.appendChild(img);
+            btn.appendChild(label);
+            btn.onclick = () => navigateBrowser(b.url);
+            strip.appendChild(btn);
+          });
+        }
+    
+        function openBrowser(url) {
+          playUiSound("select");
+          renderBrowserQuickstrip();
+          document.getElementById("browserSettings").classList.remove("open");
+          const frame = document.getElementById("browserFrame");
+          frame.src = "";
+          frame.style.display = "none";
+          document.getElementById("browserHome").style.display = "flex";
+          document.getElementById("browserAddress").value = "";
+          document.getElementById("browserHomeSearch").value = "";
+          document.getElementById("browserHost").textContent = "new tab";
+          document.getElementById("browserBackdrop").classList.add("open");
+          browserCurrent = "";
+          if (url) navigateBrowser(url);
+        }
+    
+        function closeBrowser() {
+          const bd = document.getElementById("browserBackdrop");
+          if (!bd.classList.contains("open")) return;
+          bd.classList.remove("open");
+          document.getElementById("browserFrame").src = "";
+          document.getElementById("browserSettings").classList.remove("open");
+        }
+    
+        function navigateBrowser(text) {
+          const url = normalizeBrowserUrl(text);
+          if (!url) return;
+          browserCurrent = url;
+          const frame = document.getElementById("browserFrame");
+          const home = document.getElementById("browserHome");
+          home.style.display = "none";
+          frame.style.display = "block";
+          frame.src = url;
+          document.getElementById("browserAddress").value = url;
+          let host = "page";
+          try { host = new URL(url).hostname; } catch (err) {}
+          document.getElementById("browserHost").textContent = host;
+          document.getElementById("browserSettings").classList.remove("open");
+          showBrowserNote("Loading " + host + "…");
+        }
+    
+        function browserNav(action) {
+          const frame = document.getElementById("browserFrame");
+          try {
+            frame.contentWindow.history[action]();
+          } catch (err) {
+            showBrowserNote("This page doesn't allow the browser to control it");
+          }
+        }
+    
+        function browserReload() {
+          const frame = document.getElementById("browserFrame");
+          try { frame.contentWindow.location.reload(); }
+          catch (err) { if (frame.src) { const current = frame.src; frame.src = "about:blank"; frame.src = current; } }
+        }
+    
+        function browserGoHome() {
+          navigateBrowser(browserSettings.home);
+        }
+    
+        function toggleBrowserSettings() {
+          const panel = document.getElementById("browserSettings");
+          const show = !panel.classList.contains("open");
+          panel.classList.toggle("open", show);
+          if (show) {
+            document.getElementById("bsLang").value = browserSettings.lang;
+            document.getElementById("bsZoom").value = Math.round(browserSettings.zoom * 100);
+            document.getElementById("bsZoomVal").textContent = Math.round(browserSettings.zoom * 100) + "%";
+            document.getElementById("bsHome").value = browserSettings.home;
+          }
+        }
+    
+        function urlWithLang(urlText, lang) {
+          if (!lang || lang === "auto") return urlText;
+          try {
+            const url = new URL(urlText);
+            const host = url.hostname.replace(/^www\./, "");
+            if (host.endsWith("google.com") || host === "bing.com") {
+              url.searchParams.set("hl", lang);
+              return url.toString();
+            }
+            if (host.endsWith("youtube.com")) {
+              url.searchParams.set("hl", lang);
+              return url.toString();
+            }
+            if (host.endsWith("wikipedia.org")) {
+              if (host.startsWith("www.") || !/^[a-z-]{2,}\./.test(host)) url.hostname = lang + ".wikipedia.org";
+              return url.toString();
+            }
+            return null;
+          } catch (err) {
+            return null;
+          }
+        }
+    
+        function applyBrowserSettings() {
+          const lang = document.getElementById("bsLang").value || "auto";
+          const zoomPct = +document.getElementById("bsZoom").value || 100;
+          const home = normalizeBrowserUrl(document.getElementById("bsHome").value) || browserSettings.home;
+          browserSettings = { lang: lang, zoom: zoomPct / 100, home: home };
+          try { localStorage.setItem("oke_browser", JSON.stringify(browserSettings)); } catch (err) {}
+          applyBrowserZoom();
+          document.getElementById("browserSettings").classList.remove("open");
+          if (browserCurrent) {
+            const mapped = urlWithLang(browserCurrent, lang);
+            if (mapped) {
+              navigateBrowser(mapped);
+              showBrowserNote("Language sent to the page ✓ (" + lang.toUpperCase() + ")");
+            } else {
+              showBrowserNote("Saved — pages will use " + lang.toUpperCase() + " where the site supports it");
+            }
+          } else {
+            showBrowserNote("Settings saved ✓");
+          }
+        }
+    
+        function applyBrowserZoom() {
+          const frame = document.getElementById("browserFrame");
+          const zoom = browserSettings.zoom || 1;
+          frame.style.width = (100 / zoom) + "%";
+          frame.style.height = (100 / zoom) + "%";
+          frame.style.transform = "scale(" + zoom + ")";
+        }
+    
+        function browserOpenSystem() {
+          if (!browserCurrent) return;
+          try { window.open(browserCurrent, "_blank"); } catch (err) {}
+          showBrowserNote("Opening " + browserCurrent.replace(/^https?:\/\//, "") + " in your system browser");
+        }
+    
+        let browserCurrent = "";
+        let browserNoteTimer = null;
+        function showBrowserNote(text) {
+          const note = document.getElementById("browserNote");
+          note.textContent = text;
+          note.classList.add("show");
+          if (browserNoteTimer) clearTimeout(browserNoteTimer);
+          browserNoteTimer = setTimeout(() => note.classList.remove("show"), 2600);
+        }
+    
+        applyBrowserZoom();
     
   </script>
 </body>
